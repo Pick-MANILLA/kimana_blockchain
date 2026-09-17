@@ -1,0 +1,14 @@
+{
+  "name": "kimana-vault-monitor",
+  "private": true,
+  "type": "module",
+  "description": "Watches SettlementVault events and raises alerts (FX divergence, stale reference rates, pauses, low float).",
+  "scripts": {
+    "start": "node index.mjs",
+    "once": "node index.mjs --once"
+  },
+  "engines": { "node": ">=20" },
+  "dependencies": {
+    "viem": "2.38.0"
+  }
+}

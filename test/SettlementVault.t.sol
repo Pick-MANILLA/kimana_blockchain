@@ -8,6 +8,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {BaseTest} from "./BaseTest.sol";
 import {SettlementVault} from "../src/SettlementVault.sol";
 import {ISettlementVault} from "../src/interfaces/ISettlementVault.sol";
+import {Mock18DecimalToken} from "./mocks/Mock18DecimalToken.sol";
 
 contract SettlementVaultTest is BaseTest {
     bytes32 internal ref = keccak256(abi.encodePacked("kimana:transfer:", "txn_0001"));
@@ -22,31 +23,39 @@ contract SettlementVaultTest is BaseTest {
         assertEq(vault.defaultAdminDelay(), ADMIN_DELAY);
         assertTrue(vault.hasRole(OPERATOR_ROLE, operator));
         assertTrue(vault.hasRole(PAUSER_ROLE, pauser));
+        assertTrue(vault.hasRole(RATE_ORACLE_ROLE, rateOracle));
         assertFalse(vault.hasRole(OPERATOR_ROLE, address(this)), "deployer must hold no roles");
         assertEq(vault.OPERATOR_ROLE(), OPERATOR_ROLE);
         assertEq(vault.PAUSER_ROLE(), PAUSER_ROLE);
         assertEq(vault.DEFAULT_ADMIN_ROLE(), DEFAULT_ADMIN_ROLE);
+        assertEq(vault.RATE_ORACLE_ROLE(), RATE_ORACLE_ROLE);
         assertEq(vault.maxPerSettlement(), MAX_PER_SETTLEMENT);
         assertEq(vault.dailyLimit(), DAILY_LIMIT);
     }
 
     function test_constructor_revertsOnZeroAddresses() public {
         vm.expectRevert(ISettlementVault.ZeroAddress.selector);
-        new SettlementVault(IERC20(address(0)), admin, operator, pauser, ADMIN_DELAY, 1, 1);
+        new SettlementVault(IERC20(address(0)), admin, operator, pauser, rateOracle, ADMIN_DELAY, 1, 1);
 
         vm.expectRevert(ISettlementVault.ZeroAddress.selector);
-        new SettlementVault(usdc, admin, address(0), pauser, ADMIN_DELAY, 1, 1);
+        new SettlementVault(usdc, admin, address(0), pauser, rateOracle, ADMIN_DELAY, 1, 1);
 
         vm.expectRevert(ISettlementVault.ZeroAddress.selector);
-        new SettlementVault(usdc, admin, operator, address(0), ADMIN_DELAY, 1, 1);
+        new SettlementVault(usdc, admin, operator, address(0), rateOracle, ADMIN_DELAY, 1, 1);
+    }
+
+    function test_constructor_rejectsNon6DecimalAsset() public {
+        Mock18DecimalToken bridged = new Mock18DecimalToken();
+        vm.expectRevert(abi.encodeWithSelector(ISettlementVault.UnsupportedAssetDecimals.selector, 18));
+        new SettlementVault(bridged, admin, operator, pauser, rateOracle, ADMIN_DELAY, 1, 1);
     }
 
     function test_constructor_revertsOnInvalidLimits() public {
         vm.expectRevert(abi.encodeWithSelector(ISettlementVault.InvalidLimits.selector, 0, 10));
-        new SettlementVault(usdc, admin, operator, pauser, ADMIN_DELAY, 0, 10);
+        new SettlementVault(usdc, admin, operator, pauser, rateOracle, ADMIN_DELAY, 0, 10);
 
         vm.expectRevert(abi.encodeWithSelector(ISettlementVault.InvalidLimits.selector, 11, 10));
-        new SettlementVault(usdc, admin, operator, pauser, ADMIN_DELAY, 11, 10);
+        new SettlementVault(usdc, admin, operator, pauser, rateOracle, ADMIN_DELAY, 11, 10);
     }
 
     // ------------------------------------------------------------------
@@ -55,6 +64,7 @@ contract SettlementVaultTest is BaseTest {
 
     function test_settle_transfersToPartnerAndRecords() public {
         uint256 amount = 45_000 * USDC;
+        _lock(ref, amount);
 
         vm.expectEmit(address(vault));
         emit ISettlementVault.SettlementInitiated(ref, ngnPartner, amount);
@@ -138,13 +148,14 @@ contract SettlementVaultTest is BaseTest {
         _settle(_ref("b"), MAX_PER_SETTLEMENT);
         assertEq(vault.remainingDailyLimit(), 0);
 
+        _lock(_ref("c"), 1 * USDC);
         vm.prank(operator);
-        vm.expectRevert(abi.encodeWithSelector(ISettlementVault.ExceedsDailyLimit.selector, 1, 0));
-        vault.settle(_ref("c"), ngnPartner, 1);
+        vm.expectRevert(abi.encodeWithSelector(ISettlementVault.ExceedsDailyLimit.selector, 1 * USDC, 0));
+        vault.settle(_ref("c"), ngnPartner, 1 * USDC);
 
         vm.warp(block.timestamp + 1 days);
         assertEq(vault.remainingDailyLimit(), DAILY_LIMIT);
-        _settle(_ref("c"), 1);
+        _settle(_ref("c"), 1 * USDC);
     }
 
     function test_settle_dailyLimitNotRestoredByReturn() public {
@@ -166,6 +177,7 @@ contract SettlementVaultTest is BaseTest {
         vm.prank(admin);
         vault.sweep(admin, INITIAL_FLOAT);
 
+        _lock(ref, 1 * USDC);
         vm.prank(operator);
         vm.expectRevert(); // ERC20InsufficientBalance bubbles up from the token
         vault.settle(ref, ngnPartner, 1 * USDC);
@@ -437,21 +449,21 @@ contract SettlementVaultTest is BaseTest {
     // ------------------------------------------------------------------
 
     function testFuzz_settle_respectsLimits(uint256 amount) public {
-        amount = bound(amount, 1, DAILY_LIMIT * 2);
-        vm.prank(operator);
+        amount = bound(amount, MIN_AMOUNT, DAILY_LIMIT * 2);
         if (amount > MAX_PER_SETTLEMENT) {
+            vm.prank(operator);
             vm.expectRevert(
                 abi.encodeWithSelector(ISettlementVault.ExceedsPerSettlementLimit.selector, amount, MAX_PER_SETTLEMENT)
             );
             vault.settle(ref, ngnPartner, amount);
         } else {
-            vault.settle(ref, ngnPartner, amount);
+            _settle(ref, amount);
             assertEq(usdc.balanceOf(ngnPartner), amount);
         }
     }
 
     function testFuzz_fullLifecycle_conservesFunds(uint256 amount, string calldata transferId) public {
-        amount = bound(amount, 1, MAX_PER_SETTLEMENT);
+        amount = bound(amount, MIN_AMOUNT, MAX_PER_SETTLEMENT);
         bytes32 r = _ref(transferId);
 
         _settle(r, amount);

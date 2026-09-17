@@ -5,6 +5,7 @@ import {Test} from "forge-std/Test.sol";
 import {SettlementVault} from "../../src/SettlementVault.sol";
 import {ISettlementVault} from "../../src/interfaces/ISettlementVault.sol";
 import {MockUSDC} from "../mocks/MockUSDC.sol";
+import {FxMath} from "../../src/libraries/FxMath.sol";
 
 /// @notice Drives random but valid sequences of settle / return / refund / sweep / warp and tracks ghost state.
 contract SettlementVaultHandler is Test {
@@ -16,6 +17,7 @@ contract SettlementVaultHandler is Test {
     address internal refundTo;
 
     bytes32[] public refs;
+    bytes32[] public cancelledRefs;
     uint256 public ghostSettled;
     uint256 public ghostReturned;
     uint256 public ghostRefunded;
@@ -44,15 +46,72 @@ contract SettlementVaultHandler is Test {
     }
 
     function settle(uint256 amount) external {
-        amount = bound(amount, 1, vault.maxPerSettlement());
+        amount = bound(amount, 10_000, vault.maxPerSettlement());
         if (amount > vault.remainingDailyLimit()) return;
         if (amount > usdc.balanceOf(address(vault)) - vault.reservedForRefunds()) return;
 
         bytes32 ref = keccak256(abi.encode("handler", nonce++));
-        vm.prank(operator);
+        ISettlementVault.QuoteInput memory q = ISettlementVault.QuoteInput({
+            quoteId: keccak256(abi.encode("quote", ref)),
+            receiveCurrency: "NGN",
+            expiresAt: uint64(block.timestamp) + 60,
+            rate: 164_525_000_000,
+            usdcAmount: amount,
+            feeUsdc: 0,
+            receiveAmountMinor: FxMath.receiveAmount(amount, 164_525_000_000, 2)
+        });
+        vm.startPrank(operator);
+        vault.lockQuote(ref, q);
         vault.settle(ref, partner, amount);
+        vm.stopPrank();
         refs.push(ref);
         ghostSettled += amount;
+    }
+
+    /// @dev Locks a quote and cancels it; the ref must never become settleable.
+    function lockAndCancel(uint256 amount) external {
+        amount = bound(amount, 10_000, vault.maxPerSettlement());
+        bytes32 ref = keccak256(abi.encode("cancelled", nonce++));
+        ISettlementVault.QuoteInput memory q = ISettlementVault.QuoteInput({
+            quoteId: keccak256(abi.encode("quote", ref)),
+            receiveCurrency: "NGN",
+            expiresAt: uint64(block.timestamp) + 60,
+            rate: 164_525_000_000,
+            usdcAmount: amount,
+            feeUsdc: 0,
+            receiveAmountMinor: FxMath.receiveAmount(amount, 164_525_000_000, 2)
+        });
+        vm.startPrank(operator);
+        vault.lockQuote(ref, q);
+        vault.cancelQuote(ref);
+        vm.expectRevert(abi.encodeWithSelector(ISettlementVault.QuoteIsCancelled.selector, ref));
+        vault.settle(ref, partner, amount);
+        vm.stopPrank();
+        cancelledRefs.push(ref);
+    }
+
+    /// @dev A second lock with a reused quote id must always fail.
+    function reuseQuoteId(uint256 index) external {
+        if (refs.length == 0) return;
+        bytes32 used = refs[index % refs.length];
+        ISettlementVault.LockedQuote memory l = vault.getQuote(used);
+        bytes32 fresh = keccak256(abi.encode("reuse", nonce++));
+        ISettlementVault.QuoteInput memory q = ISettlementVault.QuoteInput({
+            quoteId: l.quoteId,
+            receiveCurrency: "NGN",
+            expiresAt: uint64(block.timestamp) + 60,
+            rate: l.rate,
+            usdcAmount: l.usdcAmount,
+            feeUsdc: 0,
+            receiveAmountMinor: l.receiveAmountMinor
+        });
+        vm.prank(operator);
+        vm.expectRevert(abi.encodeWithSelector(ISettlementVault.QuoteAlreadyUsed.selector, l.quoteId));
+        vault.lockQuote(fresh, q);
+    }
+
+    function cancelledCount() external view returns (uint256) {
+        return cancelledRefs.length;
     }
 
     function settleDuplicate(uint256 index) external {

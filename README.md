@@ -16,8 +16,12 @@ customer's bank account. **This repo covers only the USDC movement between the K
 
 | Area | State |
 |---|---|
-| `SettlementVault` contract | ✅ v0: settle, partner return, refund, limits, pause, roles |
-| Unit, fuzz and invariant tests | ✅ 47 tests, 100% line and branch coverage |
+| `SettlementVault` contract | ✅ quote lock, settle, partner return, refund, limits, pause, roles |
+| FX quote criteria (settlement side) | ✅ expiry, single-use lock, counterparty-amount check, divergence alerts ([details](docs/fx-quote-criteria.md)) |
+| Unit, fuzz and invariant tests | ✅ 97 tests, 100% line and branch coverage |
+| Local integration test (Anvil + monitor) | ✅ `make e2e`, runs in CI |
+| Monitoring | ✅ `monitor/`: event and reverted-transaction alerts, webhook, low-float check |
+| Internal security review | ✅ [Slither + manual](docs/security/review.md) |
 | Local deploy script | ✅ verified against Anvil |
 | Testnet deployment | ⏳ next: Base Sepolia |
 | Backend integration (Rust / alloy) | ⏳ not started |
@@ -26,8 +30,9 @@ customer's bank account. **This repo covers only the USDC movement between the K
 
 See the [open issues](https://github.com/Pick-MANILLA/kimana_blockchain/issues) for what to pick up.
 
-> **Chain:** EVM (confirmed). Default network is **Base** (Base Sepolia for testnet). The final mainnet network
-> should be one that both the NGN off-ramp partner and the custody provider support with native USDC.
+> **Chain:** EVM (confirmed). The vault works on any EVM chain with native USDC: **Base** (default), **Arbitrum**,
+> **Polygon** and **Ethereum** are configured, with testnets. BNB Chain is not supported (its bridged USDC has 18
+> decimals). See [`docs/networks.md`](docs/networks.md).
 
 ## How it works
 
@@ -40,12 +45,16 @@ USD payer ──► On-ramp partner ──USDC──► SettlementVault ──se
 ```
 
 - `ref` is `keccak256("kimana:transfer:" + transferId)`. Each `ref` can move money **once**.
+- Before paying, the backend calls `lockQuote(ref, quote)` with the rate, fee and counterparty amount the customer
+  accepted. Expired, reused or inconsistent quotes are rejected, and rates far from the oracle's reference rate
+  raise an alert (or are blocked). `settle` only pays the exact locked amount.
 - Funds only leave to **allowlisted partners**. The one exception is admin `sweep`, which can never touch funds reserved for refunds.
 - **Per-settlement and per-UTC-day limits** cap how much can move.
 - **Roles:**
   - admin: a Safe multisig, transferred in two steps with a delay;
   - operator: the custody provider's MPC wallet;
-  - pauser: an emergency key.
+  - pauser: an emergency key;
+  - rate oracle: publishes independent reference rates.
 
 Full design, state mapping and decimals rules: [`docs/architecture.md`](docs/architecture.md).
 
@@ -57,15 +66,26 @@ src/
   interfaces/ISettlementVault.sol
   libraries/UsdcUnits.sol        cents <-> USDC (6 dp) integer conversion
   libraries/TransferRef.sol      backend transfer id -> bytes32 ref
+  libraries/FxMath.sol           rate -> counterparty amount, divergence (integer only)
+abi/
+  SettlementVault.json           ABI for the backend and monitor (`make abi`)
 script/
   DeploySettlementVault.s.sol
+  LocalE2E.s.sol                 local end-to-end scenario (Anvil only)
+  e2e-local.sh                   runs the scenario and checks results (`make e2e`)
+monitor/
+  index.mjs                      event monitor and alerts (`make monitor`)
 test/
   SettlementVault.t.sol          unit and fuzz tests
+  QuoteLock.t.sol                FX quote acceptance criteria
   Libraries.t.sol
   invariant/                     handler-based invariant tests
   mocks/MockUSDC.sol
 docs/
   architecture.md
+  fx-quote-criteria.md           acceptance criteria -> enforcement -> tests
+  networks.md                    supported EVM chains and USDC addresses
+  security/review.md
 ```
 
 ## Getting started
@@ -82,6 +102,7 @@ forge test            # unit + fuzz + invariant
 forge test -vvv --mt test_refund   # run a subset
 forge fmt             # format before committing
 forge coverage        # coverage report
+make e2e              # local integration test (needs Node 20+)
 ```
 
 Dependencies live in `lib/`, which is gitignored. Their versions are pinned in the `Makefile`. Run `make install` again after a version bump.
@@ -98,6 +119,9 @@ source .env
 forge script script/DeploySettlementVault.s.sol \
   --rpc-url base_sepolia --account kimana-deployer --broadcast --verify
 ```
+
+Other networks: use `arbitrum_sepolia`, `polygon_amoy` or `sepolia` (testnets), or `base`, `arbitrum`, `polygon` or
+`mainnet`. See [`docs/networks.md`](docs/networks.md) for USDC addresses.
 
 The deployer gets **no roles**. Admin, operator and pauser come from the environment.
 

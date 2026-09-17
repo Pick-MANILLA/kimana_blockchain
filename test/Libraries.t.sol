@@ -4,9 +4,14 @@ pragma solidity ^0.8.28;
 import {Test} from "forge-std/Test.sol";
 import {UsdcUnits} from "../src/libraries/UsdcUnits.sol";
 import {TransferRef} from "../src/libraries/TransferRef.sol";
+import {FxMath} from "../src/libraries/FxMath.sol";
 
 /// @dev Wrapper so reverts from internal library calls can be asserted.
 contract UnitsHarness {
+    function receiveAmount(uint256 usdcAmount, uint256 rate, uint8 decimals) external pure returns (uint256) {
+        return FxMath.receiveAmount(usdcAmount, rate, decimals);
+    }
+
     function toCents(uint256 usdcAmount) external pure returns (uint256) {
         return UsdcUnits.toCents(usdcAmount);
     }
@@ -24,6 +29,11 @@ contract LibrariesTest is Test {
     function test_toCents_revertsOnSubCentAmounts() public {
         vm.expectRevert(abi.encodeWithSelector(UsdcUnits.NotWholeCents.selector, 10_001));
         harness.toCents(10_001);
+    }
+
+    function test_receiveAmount_rejectsTooManyDecimals() public {
+        vm.expectRevert(abi.encodeWithSelector(FxMath.UnsupportedCurrencyDecimals.selector, 19));
+        harness.receiveAmount(1e6, 1e8, 19);
     }
 
     function testFuzz_centsRoundTrip(uint128 cents) public view {

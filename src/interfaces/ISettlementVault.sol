@@ -24,6 +24,55 @@ interface ISettlementVault {
         uint256 amount;
     }
 
+    /// @notice Firm quote the customer accepted, as sent by the backend when the customer confirms.
+    /// @dev `usdcAmount` is what the vault will settle (net of `feeUsdc`). `receiveAmountMinor` must equal
+    ///      `FxMath.receiveAmount(usdcAmount, rate, decimals)` exactly, where `decimals` comes from the admin
+    ///      currency registry (never from the caller).
+    struct QuoteInput {
+        bytes32 quoteId;
+        bytes3 receiveCurrency;
+        uint64 expiresAt;
+        uint256 rate;
+        uint256 usdcAmount;
+        uint256 feeUsdc;
+        uint256 receiveAmountMinor;
+    }
+
+    /// @notice A quote locked on-chain for a transfer `ref`.
+    struct LockedQuote {
+        bytes32 quoteId;
+        bytes3 receiveCurrency;
+        uint8 receiveDecimals;
+        bool cancelled;
+        uint64 expiresAt;
+        uint64 lockedAt;
+        uint256 rate;
+        uint256 usdcAmount;
+        uint256 feeUsdc;
+        uint256 receiveAmountMinor;
+    }
+
+    /// @notice A receive currency the vault may quote, with its minor-unit exponent (NGN = 2, XOF = 0).
+    struct CurrencyInfo {
+        uint8 decimals;
+        bool enabled;
+    }
+
+    /// @notice Independent reference rate for a receive currency, used to detect provider divergence.
+    struct ReferenceRate {
+        uint256 rate;
+        uint64 updatedAt;
+    }
+
+    /// @notice Risk parameters for quote locking.
+    struct QuoteConfig {
+        uint64 maxQuoteTtl; // longest allowed time between lock and quote expiry (<= 1 day)
+        uint64 referenceMaxAge; // reference rates older than this are treated as stale (<= 7 days)
+        uint64 maxSettleDelay; // longest allowed time between lock and settlement (<= 30 days)
+        uint16 divergenceAlertBps; // deviation that emits RateDivergence (alert, lock still succeeds)
+        uint16 divergenceMaxBps; // deviation that blocks the lock
+    }
+
     // ---------------------------------------------------------------------
     // Events
     // ---------------------------------------------------------------------
@@ -35,11 +84,34 @@ interface ISettlementVault {
     event LimitsUpdated(uint256 maxPerSettlement, uint256 dailyLimit);
     event Swept(address indexed to, uint256 amount);
 
+    event QuoteLocked(
+        bytes32 indexed ref,
+        bytes32 indexed quoteId,
+        bytes3 receiveCurrency,
+        uint256 rate,
+        uint256 usdcAmount,
+        uint256 feeUsdc,
+        uint256 receiveAmountMinor,
+        uint64 expiresAt
+    );
+    event QuoteCancelled(bytes32 indexed ref, bytes32 indexed quoteId);
+    event CurrencyUpdated(bytes3 indexed currency, uint8 decimals, bool enabled);
+    event ReferenceRateUpdated(bytes3 indexed currency, uint256 rate, uint64 updatedAt);
+    event QuoteConfigUpdated(QuoteConfig config);
+
+    /// @notice ALERT: the quoted rate deviates from the reference rate by at least `divergenceAlertBps`.
+    event RateDivergence(
+        bytes32 indexed ref, bytes3 indexed currency, uint256 quotedRate, uint256 referenceRate, uint256 deviationBps
+    );
+    /// @notice ALERT: no fresh reference rate was available, so divergence could not be checked.
+    event ReferenceRateStale(bytes32 indexed ref, bytes3 indexed currency, uint64 referenceUpdatedAt);
+
     // ---------------------------------------------------------------------
     // Errors
     // ---------------------------------------------------------------------
 
     error ZeroAddress();
+    error UnsupportedAssetDecimals(uint8 decimals);
     error ZeroRef();
     error ZeroAmount();
     error InvalidLimits(uint256 maxPerSettlement, uint256 dailyLimit);
@@ -51,11 +123,37 @@ interface ISettlementVault {
     error NotSettlementPartner(bytes32 ref, address caller);
     error InsufficientFreeBalance(uint256 requested, uint256 available);
 
+    error ZeroQuoteId();
+    error InvalidQuote();
+    error QuoteExpired(bytes32 ref, uint64 expiresAt);
+    error QuoteTtlTooLong(uint64 expiresAt, uint64 maxAllowed);
+    error QuoteAlreadyLocked(bytes32 ref);
+    error QuoteAlreadyUsed(bytes32 quoteId);
+    error QuoteNotLocked(bytes32 ref);
+    error QuoteIsCancelled(bytes32 ref);
+    error ReceiveAmountMismatch(uint256 provided, uint256 expected);
+    error SettleAmountMismatch(bytes32 ref, uint256 provided, uint256 locked);
+    error RateDivergenceTooHigh(bytes32 ref, uint256 deviationBps, uint256 maxBps);
+    error InvalidQuoteConfig();
+    error ZeroRate();
+    error CurrencyNotSupported(bytes3 currency);
+    error QuoteLockTooOld(bytes32 ref, uint64 lockedAt, uint64 maxSettleDelay);
+
     // ---------------------------------------------------------------------
     // Operator actions (backend, via custody provider)
     // ---------------------------------------------------------------------
 
-    /// @notice Send `amount` USDC to `partner` for transfer `ref`.
+    /// @notice Lock the firm quote the customer accepted for transfer `ref`. Reverts if the quote has expired,
+    ///         was already used, has inconsistent amounts, or diverges too far from the reference rate.
+    function lockQuote(bytes32 ref, QuoteInput calldata quote) external;
+
+    /// @notice Cancel a locked quote that will never be settled (e.g. funding never arrived). Both the quote id
+    ///         and the transfer `ref` stay used: a re-quoted transfer needs a new backend transfer id.
+    function cancelQuote(bytes32 ref) external;
+
+    /// @notice Send `amount` USDC to `partner` for transfer `ref`. Requires a locked, non-cancelled quote for
+    ///         `ref` whose `usdcAmount` equals `amount`. A locked quote is honoured after its expiry, but only
+    ///         for up to `maxSettleDelay` after it was locked.
     function settle(bytes32 ref, address partner, uint256 amount) external;
 
     /// @notice Send the USDC of a returned settlement to an allowlisted `to` address.
@@ -70,11 +168,20 @@ interface ISettlementVault {
     function returnSettlement(bytes32 ref) external;
 
     // ---------------------------------------------------------------------
+    // Rate oracle actions
+    // ---------------------------------------------------------------------
+
+    /// @notice Publish an independent reference rate (receive units per 1 USD, 8 decimals).
+    function setReferenceRate(bytes3 currency, uint256 rate) external;
+
+    // ---------------------------------------------------------------------
     // Admin actions (multisig)
     // ---------------------------------------------------------------------
 
     function setPartner(address partner, bool allowed) external;
     function setLimits(uint256 maxPerSettlement, uint256 dailyLimit) external;
+    function setQuoteConfig(QuoteConfig calldata config) external;
+    function setCurrency(bytes3 currency, uint8 decimals, bool enabled) external;
     function sweep(address to, uint256 amount) external;
     function pause() external;
     function unpause() external;
@@ -84,6 +191,11 @@ interface ISettlementVault {
     // ---------------------------------------------------------------------
 
     function getSettlement(bytes32 ref) external view returns (Settlement memory);
+    function getQuote(bytes32 ref) external view returns (LockedQuote memory);
+    function isQuoteUsed(bytes32 quoteId) external view returns (bool);
+    function getReferenceRate(bytes3 currency) external view returns (ReferenceRate memory);
+    function getCurrency(bytes3 currency) external view returns (CurrencyInfo memory);
+    function quoteConfig() external view returns (QuoteConfig memory);
     function isPartner(address account) external view returns (bool);
     function remainingDailyLimit() external view returns (uint256);
 }

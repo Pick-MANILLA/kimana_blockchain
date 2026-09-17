@@ -2,7 +2,7 @@
 FORGE_STD    := foundry-rs/forge-std@v1.16.2
 OPENZEPPELIN := OpenZeppelin/openzeppelin-contracts@v5.4.0
 
-.PHONY: install build test fmt coverage clean
+.PHONY: install build test fmt coverage clean abi e2e slither monitor
 
 install:
 	rm -rf lib
@@ -22,3 +22,19 @@ coverage:
 
 clean:
 	forge clean
+
+# Regenerate the ABI the backend and monitor use
+abi:
+	forge inspect SettlementVault abi --json > abi/SettlementVault.json
+
+# Local integration test: Anvil + LocalE2E.s.sol + monitor
+e2e:
+	cd monitor && npm ci --silent
+	bash script/e2e-local.sh
+
+slither:
+	slither . --config-file slither.config.json
+
+# Watch a deployed vault (needs RPC_URL and VAULT_ADDRESS)
+monitor:
+	cd monitor && npm ci --silent && node index.mjs

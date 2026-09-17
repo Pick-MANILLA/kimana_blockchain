@@ -17,3 +17,7 @@ coverage/
 
 # Dependencies (installed with `make install`)
 lib/
+
+# Monitor
+monitor/node_modules/
+monitor/.monitor-state.json

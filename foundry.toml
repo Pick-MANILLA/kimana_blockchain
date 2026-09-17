@@ -32,13 +32,27 @@ int_types = "long"
 quote_style = "double"
 number_underscore = "thousands"
 
+# Any EVM chain with native (6-decimal) USDC works. Testnets first, then mainnets.
 [rpc_endpoints]
 base_sepolia = "${BASE_SEPOLIA_RPC_URL}"
+arbitrum_sepolia = "${ARBITRUM_SEPOLIA_RPC_URL}"
+polygon_amoy = "${POLYGON_AMOY_RPC_URL}"
+sepolia = "${SEPOLIA_RPC_URL}"
 base = "${BASE_RPC_URL}"
+arbitrum = "${ARBITRUM_RPC_URL}"
+polygon = "${POLYGON_RPC_URL}"
+mainnet = "${MAINNET_RPC_URL}"
 
+# One Etherscan (API v2) key verifies contracts on all of these chains.
 [etherscan]
-base_sepolia = { key = "${BASESCAN_API_KEY}", url = "https://api-sepolia.basescan.org/api" }
-base = { key = "${BASESCAN_API_KEY}", url = "https://api.basescan.org/api" }
+base_sepolia = { key = "${ETHERSCAN_API_KEY}", chain = 84532 }
+arbitrum_sepolia = { key = "${ETHERSCAN_API_KEY}", chain = 421614 }
+polygon_amoy = { key = "${ETHERSCAN_API_KEY}", chain = 80002 }
+sepolia = { key = "${ETHERSCAN_API_KEY}", chain = 11155111 }
+base = { key = "${ETHERSCAN_API_KEY}", chain = 8453 }
+arbitrum = { key = "${ETHERSCAN_API_KEY}", chain = 42161 }
+polygon = { key = "${ETHERSCAN_API_KEY}", chain = 137 }
+mainnet = { key = "${ETHERSCAN_API_KEY}", chain = 1 }
 
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options
 

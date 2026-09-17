@@ -41,3 +41,31 @@ jobs:
 
       - name: Coverage summary
         run: forge coverage --report summary --no-match-coverage "(test|script)/"
+
+      - name: ABI is up to date
+        run: |
+          forge inspect SettlementVault abi --json > /tmp/abi.json
+          diff <(jq -S . abi/SettlementVault.json) <(jq -S . /tmp/abi.json)
+
+  e2e:
+    name: Local integration (Anvil + monitor)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: make install
+
+      - name: Run end-to-end test
+        run: make e2e

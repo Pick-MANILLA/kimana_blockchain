@@ -48,8 +48,23 @@ contract SettlementVaultInvariantTest is StdInvariant, BaseTest {
         for (uint256 i; i < n; ++i) {
             ISettlementVault.Settlement memory s = vault.getSettlement(handler.refs(i));
             assertTrue(s.status != ISettlementVault.Status.None, "tracked ref must exist");
+            ISettlementVault.LockedQuote memory q = vault.getQuote(handler.refs(i));
+            assertGt(q.lockedAt, 0, "every settlement has a locked quote");
+            assertEq(q.usdcAmount, s.amount, "settled amount equals locked quote amount");
+            assertLe(q.lockedAt, q.expiresAt, "quote was locked before it expired");
+            assertTrue(vault.isQuoteUsed(q.quoteId), "quote id is consumed");
             if (s.status == ISettlementVault.Status.Returned) reserved += s.amount;
         }
         assertEq(reserved, vault.reservedForRefunds());
+    }
+
+    /// Cancelled quotes never move money.
+    function invariant_cancelledRefsNeverSettle() public view {
+        uint256 n = handler.cancelledCount();
+        for (uint256 i; i < n; ++i) {
+            bytes32 r = handler.cancelledRefs(i);
+            assertTrue(vault.getQuote(r).cancelled);
+            assertEq(uint8(vault.getSettlement(r).status), uint8(ISettlementVault.Status.None));
+        }
     }
 }
