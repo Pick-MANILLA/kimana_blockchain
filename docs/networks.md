@@ -36,7 +36,29 @@ After deploying:
 - register currencies and partners through that chain's Safe;
 - run a monitor for that chain (`RPC_URL=... VAULT_ADDRESS=... make monitor`).
 
-## BNB Chain later
+## Settlement token: USDC only (decision)
 
-Supporting 18-decimal bridged USDC would need the USDC decimals to be a constructor parameter (used by
-`UsdcUnits` and `FxMath`), plus a risk review of the bridge. Open an issue if the business needs it.
+**Decided:** one vault holds exactly one token, native USDC, fixed at deployment. The constructor reverts
+against any token that does not use 6 decimals.
+
+Reasons:
+- the PRD lists multi-stablecoin support as **"Not in MVP"**;
+- there is one corridor and one payout partner, and no partner has asked for another token;
+- one token keeps the amount maths to a single rule and keeps the audit surface small.
+
+### Other tokens, and what each would take
+
+| Token | Why it comes up | What it would take |
+|---|---|---|
+| **USDT** (Tether) | Often the more liquid option with Nigerian partners, especially on **Tron** | On an EVM chain: a second vault, or making the token a constructor parameter. **On Tron: a rewrite**, because Tron is not EVM and does not run this Solidity contract. |
+| **cNGN** (naira stablecoin) | Would let a partner settle the naira leg on-chain instead of by bank transfer | A second token with its own decimals, per-token floats and limits, plus a Nigerian regulatory review. The quote already carries the receive currency and its decimals, so the FX side is ready. |
+| **Bridged USDC** (e.g. on BNB Chain) | The only "USDC" on some chains | Decimals as a constructor parameter (used by `UsdcUnits` and `FxMath`) **and** a risk review of the bridge. |
+
+### Confirm this early, not late
+
+A partner who settles only in USDT or only in cNGN is a blocker, not a later feature. When asking which
+network to use (issue #1), ask in the same message: **"Which token, and on which chain, does the off-ramp
+partner settle in?"**
+
+If the answer is anything other than native USDC on an EVM chain, open an issue before deployment and
+raise it with the leads.
