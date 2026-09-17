@@ -19,16 +19,15 @@ customer's bank account. **This repo covers only the USDC movement between the K
 | `SettlementVault` contract | ✅ v0: settle, partner return, refund, limits, pause, roles |
 | Unit, fuzz and invariant tests | ✅ 47 tests, 100% line and branch coverage |
 | Local deploy script | ✅ verified against Anvil |
-| Testnet deployment | ⏳ pending chain decision (see below) |
+| Testnet deployment | ⏳ next: Base Sepolia |
 | Backend integration (Rust / alloy) | ⏳ not started |
 | Custody (Fireblocks, Cobo or Dfns) integration | ⏳ not started |
 | External audit | ⏳ required before mainnet |
 
 See the [open issues](https://github.com/Pick-MANILLA/kimana_blockchain/issues) for what to pick up.
 
-> **Open decision:** the PRD names **Stellar** as the v1 settlement chain, but Stellar does not run Solidity.
-> This repo assumes an **EVM chain** (Base is the default target). Until the product and engineering leads
-> confirm the chain, treat testnet and mainnet work as provisional.
+> **Chain:** EVM (confirmed). Default network is **Base** (Base Sepolia for testnet). The final mainnet network
+> should be one that both the NGN off-ramp partner and the custody provider support with native USDC.
 
 ## How it works
 
