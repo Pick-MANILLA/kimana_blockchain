@@ -1,0 +1,15 @@
+{
+  "network": "base-sepolia",
+  "chainId": 84532,
+  "settlementVault": "0x0000000000000000000000000000000000000000",
+  "usdc": "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+  "admin": "0x0000000000000000000000000000000000000000",
+  "operator": "0x0000000000000000000000000000000000000000",
+  "pauser": "0x0000000000000000000000000000000000000000",
+  "rateOracle": "0x0000000000000000000000000000000000000000",
+  "deployedAtBlock": 0,
+  "confirmations": 2,
+  "currencies": [{ "code": "NGN", "decimals": 2, "enabled": true }],
+  "limits": { "maxPerSettlement": "50000000000", "dailyLimit": "100000000000" },
+  "notes": "Testnet only. Copy to 84532.json and fill in after running docs/runbooks/deploy.md."
+}

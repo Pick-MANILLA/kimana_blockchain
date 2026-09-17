@@ -81,8 +81,12 @@ test/
   Libraries.t.sol
   invariant/                     handler-based invariant tests
   mocks/MockUSDC.sol
+deployments/
+  84532.example.json             per-network address registry (copy to <chainId>.json)
 docs/
   architecture.md
+  runbooks/deploy.md             step-by-step testnet deployment
+  runbooks/incident.md           pause, rotate keys, respond to alerts
   fx-quote-criteria.md           acceptance criteria -> enforcement -> tests
   networks.md                    supported EVM chains and USDC addresses
   security/review.md
