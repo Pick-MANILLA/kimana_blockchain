@@ -1,5 +1,7 @@
 # kimana_blockchain
 
+[![CI](https://github.com/Pick-MANILLA/kimana_blockchain/actions/workflows/test.yml/badge.svg)](https://github.com/Pick-MANILLA/kimana_blockchain/actions/workflows/test.yml)
+
 The on-chain settlement layer for **Kimana**, a cross-border payment and trade workflow platform for African SMEs.
 
 Kimana moves value between US dollars and Nigerian naira. USDC is the settlement asset on-chain. Licensed
