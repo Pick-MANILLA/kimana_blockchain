@@ -12,6 +12,7 @@ import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol
 
 import {ISettlementVault} from "./interfaces/ISettlementVault.sol";
 import {FxMath} from "./libraries/FxMath.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 /// @title SettlementVault
 /// @notice Holds USDC for Kimana transfers and releases it to allowlisted off-ramp partners.
@@ -333,6 +334,20 @@ contract SettlementVault is ISettlementVault, AccessControlDefaultAdminRules, Pa
         if (amount > free) revert InsufficientFreeBalance(amount, free);
         emit Swept(to, amount);
         asset.safeTransfer(to, amount);
+    }
+
+    /// @inheritdoc ISettlementVault
+    /// @dev Rescues non-USDC tokens sent to this vault by mistake. USDC must go through sweep.
+    function rescueToken(IERC20 token, address to, uint256 amount)
+        external
+        onlyRole(DEFAULT_ADMIN_ROLE)
+        nonReentrant
+    {
+        if (token == asset) revert CannotRescueAssetToken();
+        if (to == address(0)) revert ZeroAddress();
+        if (amount == 0) revert ZeroAmount();
+        emit TokenRescued(token, to, amount);
+        token.safeTransfer(to, amount);
     }
 
     /// @inheritdoc ISettlementVault

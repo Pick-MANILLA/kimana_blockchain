@@ -9,6 +9,7 @@ import {BaseTest} from "./BaseTest.sol";
 import {SettlementVault} from "../src/SettlementVault.sol";
 import {ISettlementVault} from "../src/interfaces/ISettlementVault.sol";
 import {Mock18DecimalToken} from "./mocks/Mock18DecimalToken.sol";
+import {MockUSDC} from "./mocks/MockUSDC.sol";
 
 contract SettlementVaultTest is BaseTest {
     bytes32 internal ref = keccak256(abi.encodePacked("kimana:transfer:", "txn_0001"));
@@ -475,5 +476,60 @@ contract SettlementVaultTest is BaseTest {
 
         assertEq(usdc.balanceOf(address(vault)) + usdc.balanceOf(onRampPartner), INITIAL_FLOAT);
         assertEq(vault.reservedForRefunds(), 0);
+    }
+
+    // ------------------------------------------------------------------
+    // rescueToken
+    // ------------------------------------------------------------------
+
+    function test_rescueToken_happyPath_rescuesSecondToken() public {
+        MockUSDC otherToken = new MockUSDC();
+        otherToken.mint(address(vault), 1000 * USDC);
+
+        vm.startPrank(admin);
+        vm.expectEmit(address(vault));
+        emit ISettlementVault.TokenRescued(otherToken, stranger, 500 * USDC);
+        vault.rescueToken(otherToken, stranger, 500 * USDC);
+        vm.stopPrank();
+
+        assertEq(otherToken.balanceOf(stranger), 500 * USDC);
+        assertEq(otherToken.balanceOf(address(vault)), 500 * USDC);
+    }
+
+    function test_rescueToken_revertsForAssetToken() public {
+        vm.prank(admin);
+        vm.expectRevert(abi.encodeWithSelector(ISettlementVault.CannotRescueAssetToken.selector));
+        vault.rescueToken(usdc, stranger, 1 * USDC);
+    }
+
+    function test_rescueToken_revertsForNonAdmin() public {
+        MockUSDC otherToken = new MockUSDC();
+        otherToken.mint(address(vault), 1000 * USDC);
+
+        vm.prank(operator);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IAccessControl.AccessControlUnauthorizedAccount.selector, operator, DEFAULT_ADMIN_ROLE
+            )
+        );
+        vault.rescueToken(otherToken, stranger, 500 * USDC);
+    }
+
+    function test_rescueToken_revertsOnZeroToAddress() public {
+        MockUSDC otherToken = new MockUSDC();
+        otherToken.mint(address(vault), 1000 * USDC);
+
+        vm.prank(admin);
+        vm.expectRevert(ISettlementVault.ZeroAddress.selector);
+        vault.rescueToken(otherToken, address(0), 500 * USDC);
+    }
+
+    function test_rescueToken_revertsOnZeroAmount() public {
+        MockUSDC otherToken = new MockUSDC();
+        otherToken.mint(address(vault), 1000 * USDC);
+
+        vm.prank(admin);
+        vm.expectRevert(ISettlementVault.ZeroAmount.selector);
+        vault.rescueToken(otherToken, stranger, 0);
     }
 }
