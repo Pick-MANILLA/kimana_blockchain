@@ -23,6 +23,7 @@ customer's bank account. **This repo covers only the USDC movement between the K
 | Monitoring | ✅ `monitor/`: event and reverted-transaction alerts, webhook, low-float check |
 | Internal security review | ✅ [Slither + manual](docs/security/review.md) |
 | Local deploy script | ✅ verified against Anvil |
+| Deploy preflight and post-deploy checks | ✅ `make preflight`, `make verify` |
 | Testnet deployment | ⏳ next: Base Sepolia |
 | Backend integration (Rust / alloy) | ⏳ not started |
 | Custody (Fireblocks, Cobo or Dfns) integration | ⏳ not started |
@@ -71,6 +72,8 @@ abi/
   SettlementVault.json           ABI for the backend and monitor (`make abi`)
 script/
   DeploySettlementVault.s.sol
+  preflight.sh                   pre-deployment checks (`make preflight`)
+  verify-deploy.sh               post-deployment checks (`make verify`)
   LocalE2E.s.sol                 local end-to-end scenario (Anvil only)
   e2e-local.sh                   runs the scenario and checks results (`make e2e`)
 monitor/
@@ -118,10 +121,14 @@ Never put a private key in `.env`. Use a Foundry keystore:
 ```bash
 cast wallet import kimana-deployer --interactive
 cp .env.example .env   # fill in addresses and limits
-source .env
 
+make preflight NETWORK=base_sepolia     # read-only checks; fix every failure first
+
+source .env
 forge script script/DeploySettlementVault.s.sol \
   --rpc-url base_sepolia --account kimana-deployer --broadcast --verify
+
+make verify NETWORK=base_sepolia VAULT=0x...   # roles, limits, currencies, deployer holds nothing
 ```
 
 Other networks: use `arbitrum_sepolia`, `polygon_amoy` or `sepolia` (testnets), or `base`, `arbitrum`, `polygon` or

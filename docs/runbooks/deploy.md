@@ -89,6 +89,35 @@ Never put a private key in this file.
 
 ---
 
+## 3a. Rehearse locally, then preflight
+
+Rehearse the whole thing on a throwaway local chain first — it costs nothing and catches most mistakes:
+
+```bash
+anvil &                       # local chain, chain id 31337
+make e2e                      # deploy + lock -> settle -> return -> refund + monitor assertions
+```
+
+Then run the preflight against the real network. It is read-only: no keys, no transactions.
+
+```bash
+make preflight NETWORK=base_sepolia
+```
+
+It checks the toolchain and `lib/`, that `.env` holds no private key, that all four role addresses are set,
+valid and **different**, that the limits are sane, that the RPC answers with chain id 84532, that
+`USDC_ADDRESS` has code and **6 decimals**, that the operator, pauser and oracle have gas, that
+`forge test` passes and `abi/SettlementVault.json` is current. On a mainnet alias it also refuses to
+pass until the audit and the partner and regulatory approvals are recorded.
+
+Add `DEPLOYER_ADDRESS=$(cast wallet address --account kimana-deployer)` to check the deployer's gas
+balance and that it holds none of the roles. Use `SKIP_TESTS=1` to skip `forge test` on a re-run.
+
+Fix every failure before going on. Warnings are judgement calls — an EOA admin is fine on a testnet and
+never on a mainnet.
+
+---
+
 ## 4. Deploy
 
 ```bash
@@ -105,17 +134,14 @@ export USDC=$USDC_ADDRESS
 export RPC=base_sepolia
 ```
 
-Check that the roles landed where they should (the deployer must hold nothing):
+Check that everything landed where it should — asset and its decimals, admin, every role, the limits,
+the admin transfer delay, and that **the deployer kept nothing**:
 
 ```bash
-cast call $VAULT "defaultAdmin()(address)" --rpc-url $RPC                      # the Safe
-cast call $VAULT "hasRole(bytes32,address)(bool)" \
-  $(cast keccak "OPERATOR_ROLE") $OPERATOR_ADDRESS --rpc-url $RPC              # true
-cast call $VAULT "hasRole(bytes32,address)(bool)" \
-  $(cast keccak "RATE_ORACLE_ROLE") $RATE_ORACLE_ADDRESS --rpc-url $RPC        # true
-cast call $VAULT "maxPerSettlement()(uint256)" --rpc-url $RPC
-cast call $VAULT "quoteConfig()((uint64,uint64,uint64,uint16,uint16))" --rpc-url $RPC
+make verify NETWORK=base_sepolia VAULT=$VAULT
 ```
+
+Two failures are expected at this point: `NGN is not enabled` and the partner allowlist. Step 5 fixes both.
 
 The contract should appear as verified on <https://sepolia.basescan.org>.
 
@@ -136,12 +162,13 @@ Queue and execute two calls:
 
 Currency codes as bytes3: `cast --from-utf8 NGN` → `0x4e474e`.
 
-Verify:
+Verify — this time everything should pass:
 
 ```bash
-cast call $VAULT "getCurrency(bytes3)((uint8,bool))" 0x4e474e --rpc-url $RPC   # (2, true)
-cast call $VAULT "isPartner(address)(bool)" $PARTNER --rpc-url $RPC            # true
+PARTNER_ADDRESS=$PARTNER make verify NETWORK=base_sepolia VAULT=$VAULT
 ```
+
+Add `CURRENCIES=NGN,GHS` if you registered more than one.
 
 ---
 
@@ -261,8 +288,14 @@ and alerts appear. Running it as a service is issue #16.
 
 ## 10. Record and hand off
 
-Create `deployments/84532.json` (copy `deployments/84532.example.json`) with the vault, USDC, Safe,
-operator, pauser and oracle addresses, the deployment block, and the confirmation count. Commit it.
+Generate the registry file, then fix `deployedAtBlock` by hand (the script writes the *current* block,
+not the deployment block — take it from the `forge script` broadcast log in `broadcast/`):
+
+```bash
+PARTNER_ADDRESS=$PARTNER WRITE_REGISTRY=1 make verify NETWORK=base_sepolia VAULT=$VAULT
+$EDITOR deployments/84532.json
+git add deployments/84532.json && git commit -m "chore: record the Base Sepolia deployment"
+```
 
 Then tell the backend team:
 - the vault address and chain id;
@@ -280,3 +313,4 @@ That unblocks issues #9 and #10.
 - Limits start small and rise with experience.
 - `CONFIRMATIONS` of 5 or more in the monitor.
 - Deploy only after the external audit (#14) and the regulatory and partner approvals the PRD requires.
+  `make preflight NETWORK=base` fails on purpose until those are recorded.

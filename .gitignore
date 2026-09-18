@@ -21,3 +21,8 @@ lib/
 # Monitor
 monitor/node_modules/
 monitor/.monitor-state.json
+
+# Local rehearsal artefacts
+.env.*
+!.env.example
+deployments/31337.json

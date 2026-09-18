@@ -34,6 +34,7 @@ number_underscore = "thousands"
 
 # Any EVM chain with native (6-decimal) USDC works. Testnets first, then mainnets.
 [rpc_endpoints]
+anvil = "http://127.0.0.1:8545"
 base_sepolia = "${BASE_SEPOLIA_RPC_URL}"
 arbitrum_sepolia = "${ARBITRUM_SEPOLIA_RPC_URL}"
 polygon_amoy = "${POLYGON_AMOY_RPC_URL}"
