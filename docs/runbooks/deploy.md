@@ -158,8 +158,7 @@ Queue and execute two calls:
 | Function | Values |
 |---|---|
 | `setCurrency(bytes3 currency, uint8 decimals, bool enabled)` | `0x4e474e` (that's "NGN"), `2`, `true` |
-| `setPartner(address partner, (bool onRamp, bool offRamp, bool enabled, bytes3 payoutCurrency))` | NGN off-ramp: your partner test address, `(false, true, true, 0x4e474e)` |
-| `setPartner(...)` again, for the on-ramp | `(true, false, true, 0x000000)` — needed for `fund` and as a refund destination |
+| `setPartner(address partner, (bool onRamp, bool offRamp, bool enabled, bytes3 payoutCurrency))` | your partner test address, `(true, true, true, 0x4e474e)` - both ramps, so a single testnet address can settle, fund and receive refunds. In production the on-ramp and off-ramp are separate addresses with separate flags |
 
 Currency codes as bytes3: `cast --from-utf8 NGN` → `0x4e474e`.
 
@@ -235,9 +234,9 @@ cast call $VAULT "getQuote(bytes32)((bytes32,bytes3,uint8,bool,uint64,uint64,uin
 # 8.1b Optional: the on-ramp partner delivers the USDC against this ref (issue #2).
 #      Binds the deposit on-chain to the quote. Needed only if you turned requireFunding on.
 cast send $USDC "approve(address,uint256)" $VAULT $(( AMOUNT + FEE )) \
-  --rpc-url $RPC --private-key $ONRAMP_KEY
+  --rpc-url $RPC --private-key $PARTNER_KEY
 cast send $VAULT "fund(bytes32,uint256)" $REF $(( AMOUNT + FEE )) \
-  --rpc-url $RPC --private-key $ONRAMP_KEY
+  --rpc-url $RPC --private-key $PARTNER_KEY
 cast call $VAULT "getFunding(bytes32)((address,uint64,uint256))" $REF --rpc-url $RPC
 
 # 8.2 Pay the partner
