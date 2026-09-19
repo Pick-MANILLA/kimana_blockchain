@@ -47,6 +47,22 @@ jobs:
           forge inspect SettlementVault abi --json > /tmp/abi.json
           diff <(jq -S . abi/SettlementVault.json) <(jq -S . /tmp/abi.json)
 
+  slither:
+    name: Slither static analysis
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - name: Run Slither
+        uses: crytic/slither-action@v0.3.0
+        with:
+          slither-config: slither.config.json
+          fail-on: medium
+
   e2e:
     name: Local integration (Anvil + monitor)
     runs-on: ubuntu-latest
