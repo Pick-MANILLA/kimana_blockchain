@@ -217,24 +217,6 @@
   },
   {
     "type": "function",
-    "name": "fund",
-    "inputs": [
-      {
-        "name": "ref",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      },
-      {
-        "name": "amount",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
     "name": "getCurrency",
     "inputs": [
       {
@@ -258,83 +240,6 @@
             "name": "enabled",
             "type": "bool",
             "internalType": "bool"
-          }
-        ]
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "getFunding",
-    "inputs": [
-      {
-        "name": "ref",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "",
-        "type": "tuple",
-        "internalType": "struct ISettlementVault.Funding",
-        "components": [
-          {
-            "name": "partner",
-            "type": "address",
-            "internalType": "address"
-          },
-          {
-            "name": "fundedAt",
-            "type": "uint64",
-            "internalType": "uint64"
-          },
-          {
-            "name": "amount",
-            "type": "uint256",
-            "internalType": "uint256"
-          }
-        ]
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "getPartner",
-    "inputs": [
-      {
-        "name": "account",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "",
-        "type": "tuple",
-        "internalType": "struct ISettlementVault.PartnerInfo",
-        "components": [
-          {
-            "name": "onRamp",
-            "type": "bool",
-            "internalType": "bool"
-          },
-          {
-            "name": "offRamp",
-            "type": "bool",
-            "internalType": "bool"
-          },
-          {
-            "name": "enabled",
-            "type": "bool",
-            "internalType": "bool"
-          },
-          {
-            "name": "payoutCurrency",
-            "type": "bytes3",
-            "internalType": "bytes3"
           }
         ]
       }
@@ -811,16 +716,26 @@
   },
   {
     "type": "function",
-    "name": "requireFunding",
-    "inputs": [],
-    "outputs": [
+    "name": "rescueToken",
+    "inputs": [
       {
-        "name": "",
-        "type": "bool",
-        "internalType": "bool"
+        "name": "token",
+        "type": "address",
+        "internalType": "contract IERC20"
+      },
+      {
+        "name": "to",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "amount",
+        "type": "uint256",
+        "internalType": "uint256"
       }
     ],
-    "stateMutability": "view"
+    "outputs": [],
+    "stateMutability": "nonpayable"
   },
   {
     "type": "function",
@@ -924,31 +839,9 @@
         "internalType": "address"
       },
       {
-        "name": "info",
-        "type": "tuple",
-        "internalType": "struct ISettlementVault.PartnerInfo",
-        "components": [
-          {
-            "name": "onRamp",
-            "type": "bool",
-            "internalType": "bool"
-          },
-          {
-            "name": "offRamp",
-            "type": "bool",
-            "internalType": "bool"
-          },
-          {
-            "name": "enabled",
-            "type": "bool",
-            "internalType": "bool"
-          },
-          {
-            "name": "payoutCurrency",
-            "type": "bytes3",
-            "internalType": "bytes3"
-          }
-        ]
+        "name": "allowed",
+        "type": "bool",
+        "internalType": "bool"
       }
     ],
     "outputs": [],
@@ -1007,19 +900,6 @@
         "name": "rate",
         "type": "uint256",
         "internalType": "uint256"
-      }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
-    "name": "setRequireFunding",
-    "inputs": [
-      {
-        "name": "required",
-        "type": "bool",
-        "internalType": "bool"
       }
     ],
     "outputs": [],
@@ -1103,19 +983,6 @@
     ],
     "outputs": [],
     "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
-    "name": "totalFunded",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "view"
   },
   {
     "type": "function",
@@ -1268,28 +1135,10 @@
         "internalType": "address"
       },
       {
-        "name": "onRamp",
+        "name": "allowed",
         "type": "bool",
         "indexed": false,
         "internalType": "bool"
-      },
-      {
-        "name": "offRamp",
-        "type": "bool",
-        "indexed": false,
-        "internalType": "bool"
-      },
-      {
-        "name": "enabled",
-        "type": "bool",
-        "indexed": false,
-        "internalType": "bool"
-      },
-      {
-        "name": "payoutCurrency",
-        "type": "bytes3",
-        "indexed": false,
-        "internalType": "bytes3"
       }
     ],
     "anonymous": false
@@ -1510,19 +1359,6 @@
   },
   {
     "type": "event",
-    "name": "RequireFundingUpdated",
-    "inputs": [
-      {
-        "name": "required",
-        "type": "bool",
-        "indexed": false,
-        "internalType": "bool"
-      }
-    ],
-    "anonymous": false
-  },
-  {
-    "type": "event",
     "name": "RoleAdminChanged",
     "inputs": [
       {
@@ -1592,37 +1428,6 @@
         "type": "address",
         "indexed": true,
         "internalType": "address"
-      }
-    ],
-    "anonymous": false
-  },
-  {
-    "type": "event",
-    "name": "SettlementFunded",
-    "inputs": [
-      {
-        "name": "ref",
-        "type": "bytes32",
-        "indexed": true,
-        "internalType": "bytes32"
-      },
-      {
-        "name": "partner",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "amount",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      },
-      {
-        "name": "feeUsdc",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
       }
     ],
     "anonymous": false
@@ -1723,6 +1528,31 @@
   },
   {
     "type": "event",
+    "name": "TokenRescued",
+    "inputs": [
+      {
+        "name": "token",
+        "type": "address",
+        "indexed": true,
+        "internalType": "contract IERC20"
+      },
+      {
+        "name": "to",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "amount",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
     "name": "Unpaused",
     "inputs": [
       {
@@ -1784,14 +1614,8 @@
   },
   {
     "type": "error",
-    "name": "AlreadyFunded",
-    "inputs": [
-      {
-        "name": "ref",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      }
-    ]
+    "name": "CannotRescueAssetToken",
+    "inputs": []
   },
   {
     "type": "error",
@@ -1848,27 +1672,6 @@
   },
   {
     "type": "error",
-    "name": "FundAmountMismatch",
-    "inputs": [
-      {
-        "name": "ref",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      },
-      {
-        "name": "provided",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "expected",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ]
-  },
-  {
-    "type": "error",
     "name": "InsufficientFreeBalance",
     "inputs": [
       {
@@ -1898,11 +1701,6 @@
         "internalType": "uint256"
       }
     ]
-  },
-  {
-    "type": "error",
-    "name": "InvalidPartnerConfig",
-    "inputs": []
   },
   {
     "type": "error",
@@ -1937,17 +1735,6 @@
   },
   {
     "type": "error",
-    "name": "NotFunded",
-    "inputs": [
-      {
-        "name": "ref",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      }
-    ]
-  },
-  {
-    "type": "error",
     "name": "NotSettlementPartner",
     "inputs": [
       {
@@ -1959,27 +1746,6 @@
         "name": "caller",
         "type": "address",
         "internalType": "address"
-      }
-    ]
-  },
-  {
-    "type": "error",
-    "name": "PartnerCurrencyMismatch",
-    "inputs": [
-      {
-        "name": "partner",
-        "type": "address",
-        "internalType": "address"
-      },
-      {
-        "name": "required",
-        "type": "bytes3",
-        "internalType": "bytes3"
-      },
-      {
-        "name": "quoted",
-        "type": "bytes3",
-        "internalType": "bytes3"
       }
     ]
   },

@@ -338,11 +338,7 @@ contract SettlementVault is ISettlementVault, AccessControlDefaultAdminRules, Pa
 
     /// @inheritdoc ISettlementVault
     /// @dev Rescues non-USDC tokens sent to this vault by mistake. USDC must go through sweep.
-    function rescueToken(IERC20 token, address to, uint256 amount)
-        external
-        onlyRole(DEFAULT_ADMIN_ROLE)
-        nonReentrant
-    {
+    function rescueToken(IERC20 token, address to, uint256 amount) external onlyRole(DEFAULT_ADMIN_ROLE) nonReentrant {
         if (token == asset) revert CannotRescueAssetToken();
         if (to == address(0)) revert ZeroAddress();
         if (amount == 0) revert ZeroAmount();
