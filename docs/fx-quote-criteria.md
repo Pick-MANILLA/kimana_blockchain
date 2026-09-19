@@ -26,7 +26,7 @@ Legend: ✅ enforced and tested here · 🔗 depends on another team · — not 
 
 | Item | Settlement layer status | Evidence |
 |---|---|---|
-| Functional tests passed | ✅ | `forge test`: 132 unit/fuzz/invariant tests, 100% line and branch coverage of `src/` |
+| Functional tests passed | ✅ | `forge test`: 126 unit and fuzz tests plus 6 invariants, 100% line and branch coverage of `src/` |
 | Integration tests passed | ✅ (on-chain + monitor) | `make e2e`: Anvil deployment, lock → settle → return → refund, divergence alert, blocked quote (reverted tx alert), pause/unpause, monitor assertions (runs in CI) |
 | Failure scenarios tested | ✅ | Expired, reused, re-locked, cancelled, mismatched amount, wrong decimals, unknown/disabled currency, zero counterparty amount, oversized rate/fee, divergence above max, stale/missing reference, lock too old, lowered limits, paused, unauthorised callers, invalid config |
 | Security review completed | 🟡 Internal review + threat model done | [`security/review.md`](security/review.md) and [`security/threat-model.md`](security/threat-model.md). An **external audit** is still required before mainnet |

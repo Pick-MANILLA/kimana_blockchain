@@ -197,7 +197,7 @@ Carry this list into the audit rather than letting the auditor rediscover it:
 
 **Evidence to provide**
 
-- [ ] `forge test` — 132 tests, unit + fuzz (1,000 runs) + invariant
+- [ ] `forge test` — 126 unit and fuzz tests (1,000 fuzz runs) plus 6 invariants
 - [ ] `forge coverage` — 100% line, statement, branch and function coverage of `src/`
 - [ ] `make e2e` — full lifecycle on a live chain with monitor assertions, running in CI
 - [ ] `make slither` — output and triage in `review.md`
