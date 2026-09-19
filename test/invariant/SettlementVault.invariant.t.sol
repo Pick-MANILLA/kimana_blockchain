@@ -17,7 +17,7 @@ contract SettlementVaultInvariantTest is StdInvariant, BaseTest {
 
     /// Vault balance always equals what went in minus what went out.
     function invariant_balanceMatchesAccounting() public view {
-        uint256 inflow = INITIAL_FLOAT + handler.ghostTopUps() + handler.ghostReturned();
+        uint256 inflow = INITIAL_FLOAT + handler.ghostTopUps() + handler.ghostReturned() + handler.ghostFunded();
         uint256 outflow = handler.ghostSettled() + handler.ghostRefunded() + handler.ghostSwept();
         assertEq(usdc.balanceOf(address(vault)), inflow - outflow);
     }
@@ -27,6 +27,7 @@ contract SettlementVaultInvariantTest is StdInvariant, BaseTest {
         assertEq(vault.totalSettled(), handler.ghostSettled());
         assertEq(vault.totalReturned(), handler.ghostReturned());
         assertEq(vault.totalRefunded(), handler.ghostRefunded());
+        assertEq(vault.totalFunded(), handler.ghostFunded());
     }
 
     /// Money can only be refunded after it was returned, and only returned after it was settled.

@@ -52,9 +52,17 @@ contract SettlementVault is ISettlementVault, AccessControlDefaultAdminRules, Pa
     uint256 public totalSettled;
     uint256 public totalReturned;
     uint256 public totalRefunded;
+    /// @notice Gross USDC delivered by on-ramp partners through `fund` (settlement amounts plus fees).
+    uint256 public totalFunded;
+
+    /// @notice When true, `settle` refuses a `ref` that was not funded through `fund`.
+    /// @dev Off by default: an on-ramp partner that delivers into a shared float rather than per transfer cannot
+    ///      satisfy it. Turn it on once the partner's delivery model is confirmed.
+    bool public requireFunding;
 
     mapping(bytes32 ref => Settlement) private _settlements;
-    mapping(address account => bool) private _partners;
+    mapping(bytes32 ref => Funding) private _funding;
+    mapping(address account => PartnerInfo) private _partners;
 
     mapping(bytes32 ref => LockedQuote) private _quotes;
     mapping(bytes32 quoteId => bool) private _quoteUsed;
@@ -163,13 +171,20 @@ contract SettlementVault is ISettlementVault, AccessControlDefaultAdminRules, Pa
         if (ref == bytes32(0)) revert ZeroRef();
         if (amount == 0) revert ZeroAmount();
         if (_settlements[ref].status != Status.None) revert RefAlreadyUsed(ref);
-        if (!_partners[partner]) revert PartnerNotAllowed(partner);
         if (amount > maxPerSettlement) revert ExceedsPerSettlementLimit(amount, maxPerSettlement);
 
         LockedQuote storage q = _quotes[ref];
         if (q.lockedAt == 0) revert QuoteNotLocked(ref);
         if (q.cancelled) revert QuoteIsCancelled(ref);
         if (amount != q.usdcAmount) revert SettleAmountMismatch(ref, amount, q.usdcAmount);
+
+        // Money may only go to an off-ramp partner, and only one that pays out the quoted currency.
+        PartnerInfo memory p = _partners[partner];
+        if (!p.enabled || !p.offRamp) revert PartnerNotAllowed(partner);
+        if (p.payoutCurrency != bytes3(0) && p.payoutCurrency != q.receiveCurrency) {
+            revert PartnerCurrencyMismatch(partner, p.payoutCurrency, q.receiveCurrency);
+        }
+        if (requireFunding && _funding[ref].fundedAt == 0) revert NotFunded(ref);
         if (block.timestamp > uint256(q.lockedAt) + _quoteConfig.maxSettleDelay) {
             revert QuoteLockTooOld(ref, q.lockedAt, _quoteConfig.maxSettleDelay);
         }
@@ -191,7 +206,9 @@ contract SettlementVault is ISettlementVault, AccessControlDefaultAdminRules, Pa
     function refund(bytes32 ref, address to) external onlyRole(OPERATOR_ROLE) whenNotPaused nonReentrant {
         Settlement storage s = _settlements[ref];
         if (s.status != Status.Returned) revert InvalidStatus(ref, s.status, Status.Returned);
-        if (!_partners[to]) revert PartnerNotAllowed(to);
+        // A refund sends money back towards where it came from, so the destination must be an on-ramp partner.
+        PartnerInfo memory p = _partners[to];
+        if (!p.enabled || !p.onRamp) revert PartnerNotAllowed(to);
 
         uint256 amount = s.amount;
         s.status = Status.Refunded;
@@ -205,6 +222,28 @@ contract SettlementVault is ISettlementVault, AccessControlDefaultAdminRules, Pa
     // ---------------------------------------------------------------------
     // Partner actions
     // ---------------------------------------------------------------------
+
+    /// @inheritdoc ISettlementVault
+    /// @dev Blocked while paused: a partner should not commit funds to a vault that cannot settle them.
+    function fund(bytes32 ref, uint256 amount) external whenNotPaused nonReentrant {
+        PartnerInfo memory p = _partners[msg.sender];
+        if (!p.enabled || !p.onRamp) revert PartnerNotAllowed(msg.sender);
+
+        LockedQuote storage q = _quotes[ref];
+        if (q.lockedAt == 0) revert QuoteNotLocked(ref);
+        if (q.cancelled) revert QuoteIsCancelled(ref);
+        if (_settlements[ref].status != Status.None) revert RefAlreadyUsed(ref);
+        if (_funding[ref].fundedAt != 0) revert AlreadyFunded(ref);
+
+        uint256 expected = q.usdcAmount + q.feeUsdc;
+        if (amount != expected) revert FundAmountMismatch(ref, amount, expected);
+
+        _funding[ref] = Funding({partner: msg.sender, fundedAt: uint64(block.timestamp), amount: amount});
+        totalFunded += amount;
+
+        emit SettlementFunded(ref, msg.sender, amount, q.feeUsdc);
+        asset.safeTransferFrom(msg.sender, address(this), amount);
+    }
 
     /// @inheritdoc ISettlementVault
     /// @dev Intentionally allowed while paused: returning funds only reduces risk.
@@ -257,10 +296,27 @@ contract SettlementVault is ISettlementVault, AccessControlDefaultAdminRules, Pa
     }
 
     /// @inheritdoc ISettlementVault
-    function setPartner(address partner, bool allowed) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    /// @dev Set `enabled` false (or both ramp flags false) to remove a partner. `payoutCurrency` is only
+    ///      meaningful for an off-ramp partner; `bytes3(0)` means "any registered currency".
+    function setPartner(address partner, PartnerInfo calldata info) external onlyRole(DEFAULT_ADMIN_ROLE) {
         if (partner == address(0)) revert ZeroAddress();
-        _partners[partner] = allowed;
-        emit PartnerUpdated(partner, allowed);
+        if (info.enabled && !info.onRamp && !info.offRamp) revert InvalidPartnerConfig();
+        if (info.payoutCurrency != bytes3(0)) {
+            if (!info.offRamp) revert InvalidPartnerConfig();
+            for (uint256 i; i < 3; ++i) {
+                if (info.payoutCurrency[i] < 0x41 || info.payoutCurrency[i] > 0x5A) {
+                    revert CurrencyNotSupported(info.payoutCurrency);
+                }
+            }
+        }
+        _partners[partner] = info;
+        emit PartnerUpdated(partner, info.onRamp, info.offRamp, info.enabled, info.payoutCurrency);
+    }
+
+    /// @inheritdoc ISettlementVault
+    function setRequireFunding(bool required) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        requireFunding = required;
+        emit RequireFundingUpdated(required);
     }
 
     /// @inheritdoc ISettlementVault
@@ -324,8 +380,18 @@ contract SettlementVault is ISettlementVault, AccessControlDefaultAdminRules, Pa
     }
 
     /// @inheritdoc ISettlementVault
-    function isPartner(address account) external view returns (bool) {
+    function getFunding(bytes32 ref) external view returns (Funding memory) {
+        return _funding[ref];
+    }
+
+    /// @inheritdoc ISettlementVault
+    function getPartner(address account) external view returns (PartnerInfo memory) {
         return _partners[account];
+    }
+
+    /// @inheritdoc ISettlementVault
+    function isPartner(address account) external view returns (bool) {
+        return _partners[account].enabled;
     }
 
     /// @inheritdoc ISettlementVault

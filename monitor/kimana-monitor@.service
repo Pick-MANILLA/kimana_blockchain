@@ -1,0 +1,38 @@
+# systemd alternative to Docker (issue #16). One instance per network:
+#
+#   sudo cp kimana-monitor@.service /etc/systemd/system/
+#   sudo mkdir -p /etc/kimana && sudo cp .env.monitor.example /etc/kimana/monitor-base-sepolia.env
+#   sudo $EDITOR /etc/kimana/monitor-base-sepolia.env     # see EnvironmentFile keys below
+#   sudo systemctl enable --now kimana-monitor@base-sepolia
+#   systemctl status kimana-monitor@base-sepolia
+#   journalctl -u kimana-monitor@base-sepolia -f
+#
+# The env file must set NETWORK_LABEL, RPC_URL, VAULT_ADDRESS, CONFIRMATIONS, MIN_FLOAT_USDC,
+# ALERT_WEBHOOK_URL, PAGER_WEBHOOK_URL and HEALTH_PORT (a different port per instance).
+
+[Unit]
+Description=Kimana SettlementVault monitor (%i)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=kimana
+WorkingDirectory=/opt/kimana/kimana_blockchain/monitor
+EnvironmentFile=/etc/kimana/monitor-%i.env
+Environment=STATE_FILE=/var/lib/kimana/monitor-%i.json
+ExecStart=/usr/bin/node index.mjs
+Restart=always
+RestartSec=10
+StateDirectory=kimana
+
+# The monitor only reads a chain and posts webhooks; it holds no keys and needs no write access
+# anywhere except its own state file.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/kimana
+
+[Install]
+WantedBy=multi-user.target

@@ -52,8 +52,13 @@ contract LocalE2E is Script {
 
         // 2. Admin (multisig in production) approves partners
         vm.startBroadcast(ADMIN_PK);
-        vault.setPartner(partner, true);
-        vault.setPartner(onRamp, true);
+        vault.setPartner(
+            partner, ISettlementVault.PartnerInfo({onRamp: false, offRamp: true, enabled: true, payoutCurrency: NGN})
+        );
+        vault.setPartner(
+            onRamp,
+            ISettlementVault.PartnerInfo({onRamp: true, offRamp: false, enabled: true, payoutCurrency: bytes3(0)})
+        );
         vault.setCurrency(NGN, 2, true);
         vm.stopBroadcast();
 
@@ -61,13 +66,24 @@ contract LocalE2E is Script {
         vm.broadcast(ORACLE_PK);
         vault.setReferenceRate(NGN, NGN_RATE);
 
-        // 4. Customer accepts a $45,000 quote; backend locks it and settles
+        // 4. Customer accepts a $45,000 quote; backend locks it, the on-ramp partner funds it, backend settles
         bytes32 ref1 = TransferRef.fromTransferId("e2e_txn_001");
         uint256 amount = UsdcUnits.fromCents(4_500_000);
-        vm.startBroadcast(OPERATOR_PK);
-        vault.lockQuote(ref1, _quote("e2e_quote_001", NGN_RATE, amount));
-        vault.settle(ref1, partner, amount);
+        uint256 fee = UsdcUnits.fromCents(2500); // $25
+        vm.broadcast(OPERATOR_PK);
+        vault.lockQuote(ref1, _quote("e2e_quote_001", NGN_RATE, amount, fee));
+
+        // The on-ramp partner delivers exactly the quote's gross amount, binding the deposit to the quote.
+        vm.startBroadcast(DEPLOYER_PK);
+        usdc.mint(onRamp, amount + fee);
         vm.stopBroadcast();
+        vm.startBroadcast(ONRAMP_PK);
+        usdc.approve(address(vault), amount + fee);
+        vault.fund(ref1, amount + fee);
+        vm.stopBroadcast();
+
+        vm.broadcast(OPERATOR_PK);
+        vault.settle(ref1, partner, amount);
 
         // 5. The NGN payout fails; partner returns the USDC and the backend refunds the on-ramp
         vm.startBroadcast(PARTNER_PK);
@@ -81,7 +97,7 @@ contract LocalE2E is Script {
         bytes32 ref2 = TransferRef.fromTransferId("e2e_txn_002");
         uint256 divergent = NGN_RATE + (NGN_RATE * 200) / 10_000;
         vm.broadcast(OPERATOR_PK);
-        vault.lockQuote(ref2, _quote("e2e_quote_002", divergent, UsdcUnits.fromCents(100_000)));
+        vault.lockQuote(ref2, _quote("e2e_quote_002", divergent, UsdcUnits.fromCents(100_000), 0));
 
         // 7. Emergency pause
         vm.broadcast(PAUSER_PK);
@@ -95,7 +111,7 @@ contract LocalE2E is Script {
         console2.logBytes32(ref2);
     }
 
-    function _quote(string memory id, uint256 rate, uint256 usdcAmount)
+    function _quote(string memory id, uint256 rate, uint256 usdcAmount, uint256 feeUsdc)
         internal
         view
         returns (ISettlementVault.QuoteInput memory q)
@@ -106,7 +122,7 @@ contract LocalE2E is Script {
             expiresAt: uint64(block.timestamp + 90),
             rate: rate,
             usdcAmount: usdcAmount,
-            feeUsdc: UsdcUnits.fromCents(2500),
+            feeUsdc: feeUsdc,
             receiveAmountMinor: FxMath.receiveAmount(usdcAmount, rate, 2)
         });
     }

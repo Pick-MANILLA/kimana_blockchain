@@ -52,6 +52,25 @@ interface ISettlementVault {
         uint256 receiveAmountMinor;
     }
 
+    /// @notice USDC received from an on-ramp partner for a transfer `ref`.
+    /// @dev `amount` is the gross deposit: the quote's `usdcAmount` plus `feeUsdc`. The fee stays in the vault
+    ///      and is withdrawn by admin `sweep`.
+    struct Funding {
+        address partner;
+        uint64 fundedAt;
+        uint256 amount;
+    }
+
+    /// @notice What a partner address is allowed to do.
+    /// @dev A partner may be an on-ramp, an off-ramp, or both. `payoutCurrency` restricts an off-ramp partner to
+    ///      settlements quoted in that currency; `bytes3(0)` means any registered currency.
+    struct PartnerInfo {
+        bool onRamp;
+        bool offRamp;
+        bool enabled;
+        bytes3 payoutCurrency;
+    }
+
     /// @notice A receive currency the vault may quote, with its minor-unit exponent (NGN = 2, XOF = 0).
     struct CurrencyInfo {
         uint8 decimals;
@@ -80,7 +99,9 @@ interface ISettlementVault {
     event SettlementInitiated(bytes32 indexed ref, address indexed partner, uint256 amount);
     event SettlementReturned(bytes32 indexed ref, address indexed partner, uint256 amount);
     event SettlementRefunded(bytes32 indexed ref, address indexed to, uint256 amount);
-    event PartnerUpdated(address indexed partner, bool allowed);
+    event SettlementFunded(bytes32 indexed ref, address indexed partner, uint256 amount, uint256 feeUsdc);
+    event PartnerUpdated(address indexed partner, bool onRamp, bool offRamp, bool enabled, bytes3 payoutCurrency);
+    event RequireFundingUpdated(bool required);
     event LimitsUpdated(uint256 maxPerSettlement, uint256 dailyLimit);
     event Swept(address indexed to, uint256 amount);
 
@@ -139,6 +160,12 @@ interface ISettlementVault {
     error CurrencyNotSupported(bytes3 currency);
     error QuoteLockTooOld(bytes32 ref, uint64 lockedAt, uint64 maxSettleDelay);
 
+    error AlreadyFunded(bytes32 ref);
+    error FundAmountMismatch(bytes32 ref, uint256 provided, uint256 expected);
+    error NotFunded(bytes32 ref);
+    error PartnerCurrencyMismatch(address partner, bytes3 required, bytes3 quoted);
+    error InvalidPartnerConfig();
+
     // ---------------------------------------------------------------------
     // Operator actions (backend, via custody provider)
     // ---------------------------------------------------------------------
@@ -163,6 +190,13 @@ interface ISettlementVault {
     // Partner actions
     // ---------------------------------------------------------------------
 
+    /// @notice Called by an on-ramp partner to deliver the USDC for transfer `ref`, binding the deposit on-chain
+    ///         to the quote the customer accepted. `amount` must equal `usdcAmount + feeUsdc` of the locked quote
+    ///         (the partner must `approve` the vault first).
+    /// @dev Optional by default. Turn `requireFunding` on once the on-ramp partner is known to deliver per
+    ///      transfer rather than into a shared float; `settle` then refuses an unfunded `ref`.
+    function fund(bytes32 ref, uint256 amount) external;
+
     /// @notice Called by the settlement's partner when the off-chain payout failed. Pulls the exact settled
     ///         amount back into the vault (partner must `approve` the vault first).
     function returnSettlement(bytes32 ref) external;
@@ -178,7 +212,8 @@ interface ISettlementVault {
     // Admin actions (multisig)
     // ---------------------------------------------------------------------
 
-    function setPartner(address partner, bool allowed) external;
+    function setPartner(address partner, PartnerInfo calldata info) external;
+    function setRequireFunding(bool required) external;
     function setLimits(uint256 maxPerSettlement, uint256 dailyLimit) external;
     function setQuoteConfig(QuoteConfig calldata config) external;
     function setCurrency(bytes3 currency, uint8 decimals, bool enabled) external;
@@ -196,6 +231,8 @@ interface ISettlementVault {
     function getReferenceRate(bytes3 currency) external view returns (ReferenceRate memory);
     function getCurrency(bytes3 currency) external view returns (CurrencyInfo memory);
     function quoteConfig() external view returns (QuoteConfig memory);
+    function getFunding(bytes32 ref) external view returns (Funding memory);
+    function getPartner(address account) external view returns (PartnerInfo memory);
     function isPartner(address account) external view returns (bool);
     function remainingDailyLimit() external view returns (uint256);
 }

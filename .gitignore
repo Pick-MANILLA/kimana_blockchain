@@ -25,4 +25,9 @@ monitor/.monitor-state.json
 # Local rehearsal artefacts
 .env.*
 !.env.example
+!*.env.example
+!.env.monitor.example
 deployments/31337.json
+
+# Oracle service
+oracle/node_modules/

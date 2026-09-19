@@ -18,9 +18,13 @@ customer's bank account. **This repo covers only the USDC movement between the K
 |---|---|
 | `SettlementVault` contract | ✅ quote lock, settle, partner return, refund, limits, pause, roles |
 | FX quote criteria (settlement side) | ✅ expiry, single-use lock, counterparty-amount check, divergence alerts ([details](docs/fx-quote-criteria.md)) |
-| Unit, fuzz and invariant tests | ✅ 97 tests, 100% line and branch coverage |
+| Unit, fuzz and invariant tests | ✅ 132 tests, 100% line and branch coverage |
 | Local integration test (Anvil + monitor) | ✅ `make e2e`, runs in CI |
-| Monitoring | ✅ `monitor/`: event and reverted-transaction alerts, webhook, low-float check |
+| Inbound USDC accounting (`fund`) | ✅ deposits bound on-chain to the locked quote (optional gate: `requireFunding`) |
+| Partner types | ✅ on-ramp / off-ramp, with per-currency payout restriction |
+| Monitoring | ✅ `monitor/`: event and reverted-transaction alerts, alert routing, `/health`, Docker + systemd |
+| Rate oracle service | ✅ `oracle/`: independent reference rates, integer-only, jump guard |
+| Threat model | ✅ [`docs/security/threat-model.md`](docs/security/threat-model.md) |
 | Internal security review | ✅ [Slither + manual](docs/security/review.md) |
 | Local deploy script | ✅ verified against Anvil |
 | Deploy preflight and post-deploy checks | ✅ `make preflight`, `make verify` |
@@ -46,6 +50,8 @@ USD payer ──► On-ramp partner ──USDC──► SettlementVault ──se
 ```
 
 - `ref` is `keccak256("kimana:transfer:" + transferId)`. Each `ref` can move money **once**.
+- The on-ramp partner can deliver the USDC with `fund(ref, usdcAmount + feeUsdc)`, which binds the deposit
+  on-chain to the accepted quote. Admin can then require it with `setRequireFunding(true)`.
 - Before paying, the backend calls `lockQuote(ref, quote)` with the rate, fee and counterparty amount the customer
   accepted. Expired, reused or inconsistent quotes are rejected, and rates far from the oracle's reference rate
   raise an alert (or are blocked). `settle` only pays the exact locked amount.
@@ -74,13 +80,19 @@ script/
   DeploySettlementVault.s.sol
   preflight.sh                   pre-deployment checks (`make preflight`)
   verify-deploy.sh               post-deployment checks (`make verify`)
+  FloatReport.s.sol              on-demand treasury report (`make float`)
   LocalE2E.s.sol                 local end-to-end scenario (Anvil only)
   e2e-local.sh                   runs the scenario and checks results (`make e2e`)
 monitor/
   index.mjs                      event monitor and alerts (`make monitor`)
+  Dockerfile, docker-compose.yml, kimana-monitor@.service   one instance per network
+oracle/
+  index.mjs                      publishes independent reference rates (`make oracle`)
 test/
   SettlementVault.t.sol          unit and fuzz tests
   QuoteLock.t.sol                FX quote acceptance criteria
+  FundingAndPartners.t.sol       fund() accounting and partner types
+  Blocklist.t.sol                behaviour when Circle blocklists an address
   Libraries.t.sol
   invariant/                     handler-based invariant tests
   mocks/MockUSDC.sol
@@ -88,11 +100,14 @@ deployments/
   84532.example.json             per-network address registry (copy to <chainId>.json)
 docs/
   architecture.md
+  adr/0001-settlement-network.md which chain to settle on (pending sign-off)
   runbooks/deploy.md             step-by-step testnet deployment
   runbooks/incident.md           pause, rotate keys, respond to alerts
+  runbooks/monitoring.md         running the monitor per network
   fx-quote-criteria.md           acceptance criteria -> enforcement -> tests
   networks.md                    supported EVM chains and USDC addresses
   security/review.md
+  security/threat-model.md       actors, trust assumptions, audit readiness
 ```
 
 ## Getting started
@@ -110,6 +125,7 @@ forge test -vvv --mt test_refund   # run a subset
 forge fmt             # format before committing
 forge coverage        # coverage report
 make e2e              # local integration test (needs Node 20+)
+make float VAULT=0x... NETWORK=base_sepolia   # treasury report
 ```
 
 Dependencies live in `lib/`, which is gitignored. Their versions are pinned in the `Makefile`. Run `make install` again after a version bump.

@@ -80,7 +80,8 @@ Role ids: `cast keccak "OPERATOR_ROLE"`, `cast keccak "RATE_ORACLE_ROLE"`, `cast
 
 Admin (Safe):
 
-- `setPartner(partner, false)` — blocks new settlements to that partner. Settlements already made are
+- `setPartner(partner, (false, false, false, 0x000000))` — blocks new settlements to that partner, and stops
+  it funding or receiving refunds. Settlements already made are
   unaffected, and the partner can still return funds.
 - `setCurrency(code, decimals, false)` — blocks new quote locks in that currency. Quotes already locked
   still settle.

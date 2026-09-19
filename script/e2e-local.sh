@@ -30,6 +30,12 @@ STATUS=$(cast call "$VAULT" "getSettlement(bytes32)((address,uint64,uint8,uint25
 LOCKED2=$(cast call "$VAULT" "getQuote(bytes32)((bytes32,bytes3,uint8,bool,uint64,uint64,uint256,uint256,uint256,uint256))" "$REF2" --rpc-url "$RPC")
 echo "$LOCKED2" | grep -q "167815500000" || fail "ref2 quote not locked at divergent rate: $LOCKED2"
 
+# ref1 was funded by the on-ramp partner before settlement (issue #2): gross = $45,000 + $25 fee.
+FUNDING=$(cast call "$VAULT" "getFunding(bytes32)((address,uint64,uint256))" "$REF1" --rpc-url "$RPC")
+echo "$FUNDING" | grep -q "45025000000" || fail "ref1 funding not recorded: $FUNDING"
+TOTAL_FUNDED=$(cast call "$VAULT" "totalFunded()(uint256)" --rpc-url "$RPC" | awk '{print $1}')
+[ "$TOTAL_FUNDED" = "45025000000" ] || fail "totalFunded is $TOTAL_FUNDED, expected 45025000000"
+
 # A quote 6% away from the reference rate must be blocked on-chain (and alerted by the monitor).
 ADMIN_PK=0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d
 OPERATOR_PK=0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a
@@ -54,13 +60,15 @@ const lines = process.argv[1].trim().split("\n").map(JSON.parse);
 const summary = lines.at(-1);
 const has = (e, lvl) => lines.some(l => l.event === e && (!lvl || l.level === lvl));
 const need = [
-  ["QuoteLocked"], ["SettlementInitiated"], ["SettlementReturned", "warning"], ["SettlementRefunded"],
+  ["QuoteLocked"], ["SettlementFunded"], ["SettlementInitiated"], ["SettlementReturned", "warning"], ["SettlementRefunded"],
   ["RateDivergence", "warning"], ["Paused", "critical"], ["Unpaused", "warning"], ["ReferenceRateUpdated"],
   ["FloatCheck", "warning"], ["TransactionReverted", "critical"],
 ];
 const missing = need.filter(([e, l]) => !has(e, l)).map(([e, l]) => e + (l ? "/" + l : ""));
 if (missing.length) { console.error("missing:", missing); process.exit(1); }
 if (summary.counts.QuoteLocked !== 2) { console.error("expected 2 QuoteLocked", summary.counts); process.exit(1); }
+const funded = lines.find(l => l.event === "SettlementFunded");
+if (funded.args.amount !== "45025000000") { console.error("bad funded amount", funded); process.exit(1); }
 const div = lines.find(l => l.event === "RateDivergence");
 if (div.args.deviationBps !== "200" || div.args.currency !== "NGN") { console.error("bad divergence", div); process.exit(1); }
 const rev = lines.find(l => l.event === "TransactionReverted");

@@ -13,7 +13,7 @@ Legend: ✅ enforced and tested here · 🔗 depends on another team · — not 
 | # | Criterion | Settlement layer | How it is enforced | Tests | Other teams |
 |---|---|---|---|---|---|
 | 1 | User can enter transaction amount and currencies | — | Not an on-chain concern | – | 🔗 Frontend form, backend `POST /quotes` |
-| 2 | System retrieves current rates | ✅ (reference side) | Rate oracle publishes an independent reference rate per currency with `setReferenceRate`; its age is tracked | `test_setReferenceRate_*` | 🔗 Backend fetches the customer-facing rate from the quoting provider(s) |
+| 2 | System retrieves current rates | ✅ (reference side) | Rate oracle publishes an independent reference rate per currency with `setReferenceRate`; its age is tracked. `oracle/` implements the publisher: integer-only scaling, republish on staleness or a 0.5% move, and a jump guard that refuses an implausible rate rather than poisoning the reference | `test_setReferenceRate_*`, `oracle/test.mjs` | 🔗 Backend fetches the customer-facing rate from the quoting provider(s), which **must be a different source** |
 | 3 | System displays exchange rate | ✅ (record) | The accepted rate is stored in the locked quote and emitted in `QuoteLocked` | `test_lock_recordsRateFeeAndCounterpartyAmount` | 🔗 Frontend displays it |
 | 4 | System displays all applicable fees | ✅ (record) | `feeUsdc` is stored and emitted, so every settlement can be audited against the disclosed fee | `test_lock_recordsRateFeeAndCounterpartyAmount` | 🔗 Backend computes fees/spread; frontend displays them |
 | 5 | System displays counterparty amount | ✅ | `lockQuote` rejects a quote whose `receiveAmountMinor` is not exactly `floor(usdcAmount × rate × 10^dec / 10^14)`, or rounds to zero. `dec` comes from the admin currency registry (`setCurrency`), never from the caller. Integer-only maths (NGN 2, XOF 0) | `test_counterpartyAmount_knownValue`, `test_receiveAmount_independentVectors`, `test_lock_rejectsWrongCounterpartyAmount`, `test_wrongDecimals_rejected`, `test_zeroDecimalCurrency` | 🔗 Backend must use the same formula; frontend displays it |
@@ -26,10 +26,10 @@ Legend: ✅ enforced and tested here · 🔗 depends on another team · — not 
 
 | Item | Settlement layer status | Evidence |
 |---|---|---|
-| Functional tests passed | ✅ | `forge test`: 97 unit/fuzz/invariant tests, 100% line and branch coverage of `src/` |
+| Functional tests passed | ✅ | `forge test`: 132 unit/fuzz/invariant tests, 100% line and branch coverage of `src/` |
 | Integration tests passed | ✅ (on-chain + monitor) | `make e2e`: Anvil deployment, lock → settle → return → refund, divergence alert, blocked quote (reverted tx alert), pause/unpause, monitor assertions (runs in CI) |
 | Failure scenarios tested | ✅ | Expired, reused, re-locked, cancelled, mismatched amount, wrong decimals, unknown/disabled currency, zero counterparty amount, oversized rate/fee, divergence above max, stale/missing reference, lock too old, lowered limits, paused, unauthorised callers, invalid config |
-| Security review completed | 🟡 Internal review done | [`security/review.md`](security/review.md) (Slither + manual review). An **external audit** is still required before mainnet |
+| Security review completed | 🟡 Internal review + threat model done | [`security/review.md`](security/review.md) and [`security/threat-model.md`](security/threat-model.md). An **external audit** is still required before mainnet |
 | Audit events implemented | ✅ | `QuoteLocked`, `QuoteCancelled`, `CurrencyUpdated`, `ReferenceRateUpdated`, `QuoteConfigUpdated`, `RateDivergence`, `ReferenceRateStale`, plus the settlement events |
 | Monitoring implemented | ✅ | `monitor/index.mjs`: event stream, alert levels, reverted-transaction alerts with decoded error, webhook, low-float check, resumable state |
 | Product/design approval completed | 🔗 | Needs a product/design sign-off on the quote screen (not in this repo) |
@@ -49,4 +49,6 @@ Legend: ✅ enforced and tested here · 🔗 depends on another team · — not 
 4. Call `cancelQuote(ref)` when a locked transfer expires or is rejected before settlement. The `ref` cannot be
    reused afterwards; a re-quoted transfer needs a new transfer id.
 5. Run the rate oracle as a **separate** service/key from the quoting provider, publishing at least every
-   `referenceMaxAge`.
+   `referenceMaxAge`. `oracle/` does this; point it at a different FX source than the one you quote from.
+6. If the on-ramp partner delivers USDC per transfer, have them call `fund(ref, usdcAmount + feeUsdc)` before
+   `settle`, and ask admin to turn on `setRequireFunding(true)`. The deposit is then provably tied to the quote.

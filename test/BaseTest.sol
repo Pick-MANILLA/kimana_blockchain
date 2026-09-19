@@ -47,8 +47,8 @@ abstract contract BaseTest is Test {
         );
 
         vm.startPrank(admin);
-        vault.setPartner(ngnPartner, true);
-        vault.setPartner(onRampPartner, true);
+        vault.setPartner(ngnPartner, pOffRamp(NGN));
+        vault.setPartner(onRampPartner, pOnRamp());
         vault.setCurrency(NGN, NGN_DECIMALS, true);
         vm.stopPrank();
 
@@ -56,6 +56,28 @@ abstract contract BaseTest is Test {
         vault.setReferenceRate(NGN, NGN_RATE);
 
         usdc.mint(address(vault), INITIAL_FLOAT);
+    }
+
+    // ------------------------------------------------------------------
+    // Partner config helpers
+    // ------------------------------------------------------------------
+
+    /// @dev Off-ramp partner restricted to one payout currency (`bytes3(0)` for any).
+    function pOffRamp(bytes3 payoutCurrency) internal pure returns (ISettlementVault.PartnerInfo memory) {
+        return
+            ISettlementVault.PartnerInfo({onRamp: false, offRamp: true, enabled: true, payoutCurrency: payoutCurrency});
+    }
+
+    function pOnRamp() internal pure returns (ISettlementVault.PartnerInfo memory) {
+        return ISettlementVault.PartnerInfo({onRamp: true, offRamp: false, enabled: true, payoutCurrency: bytes3(0)});
+    }
+
+    function pBoth() internal pure returns (ISettlementVault.PartnerInfo memory) {
+        return ISettlementVault.PartnerInfo({onRamp: true, offRamp: true, enabled: true, payoutCurrency: bytes3(0)});
+    }
+
+    function pDisabled() internal pure returns (ISettlementVault.PartnerInfo memory) {
+        return ISettlementVault.PartnerInfo({onRamp: false, offRamp: false, enabled: false, payoutCurrency: bytes3(0)});
     }
 
     function _quoteId(bytes32 ref) internal pure returns (bytes32) {

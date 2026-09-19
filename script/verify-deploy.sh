@@ -119,7 +119,7 @@ head_ "Partners"
 if [ -n "${PARTNER_ADDRESS:-}" ]; then
   [ "$(call "isPartner(address)(bool)" "$PARTNER_ADDRESS")" = "true" ] \
     && ok "PARTNER_ADDRESS is allowlisted" \
-    || bad "PARTNER_ADDRESS is not allowlisted - admin must call setPartner($PARTNER_ADDRESS, true)"
+    || bad "PARTNER_ADDRESS is not allowlisted - admin must call setPartner($PARTNER_ADDRESS, (onRamp,offRamp,enabled,payoutCurrency))"
 else
   warn "PARTNER_ADDRESS unset - settle() reverts until the admin allowlists the off-ramp partner"
 fi

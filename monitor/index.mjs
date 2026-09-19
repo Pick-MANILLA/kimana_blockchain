@@ -16,7 +16,12 @@
 //   CONFIRMATIONS      blocks to wait before reporting (default 0)
 //   POLL_MS            polling interval in follow mode (default 15000)
 //   MIN_FLOAT_USDC     alert if free USDC (balance - reserved refunds) drops below this many whole USDC
-//   ALERT_WEBHOOK_URL  optional webhook for alerts
+//   ALERT_WEBHOOK_URL  optional webhook for all alerts (Slack-compatible {text})
+//   PAGER_WEBHOOK_URL  optional second webhook that receives CRITICAL alerts only (page on-call)
+//   NETWORK_LABEL      prefix on every alert, e.g. "base-sepolia", so one channel can carry many networks
+//   HEALTH_PORT        serve GET /health on this port (503 once the last successful tick goes stale)
+//   HEALTH_MAX_STALE_MS  how old the last tick may be before /health fails (default max(POLL_MS*4, 120s))
+//   HEARTBEAT_MS       heartbeat log interval (default 300000)
 //   STATE_FILE         where the last processed block is stored (default .monitor-state.json)
 //   WATCH_REVERTS      "0" to disable scanning for reverted vault transactions (default on). Reverted
 //                      transactions leave no events, so this is how blocked quotes (RateDivergenceTooHigh,
@@ -24,6 +29,7 @@
 //   MAX_REVERT_SCAN    most blocks to scan per tick for reverted transactions (default 2000)
 
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
+import { createServer } from "node:http";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import {
@@ -97,17 +103,32 @@ function describe(e) {
   }
 }
 
-async function sendAlert(webhook, line) {
-  if (!webhook) return;
+async function post(url, text) {
   try {
-    await fetch(webhook, {
+    await fetch(url, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ text: `[${line.level.toUpperCase()}] ${line.message}` }),
+      body: JSON.stringify({ text }),
     });
   } catch (err) {
     console.error(JSON.stringify({ level: "error", message: `webhook failed: ${err.message}` }));
   }
+}
+
+/**
+ * `webhook` is either a URL string (the original form) or a routing object:
+ *   { url, criticalUrl, label }
+ * Critical alerts go to BOTH, so the team channel keeps the full history while on-call gets paged.
+ * `label` prefixes every message, so one Slack channel can carry several networks legibly.
+ */
+async function sendAlert(webhook, line) {
+  if (!webhook) return;
+  const cfg = typeof webhook === "string" ? {url: webhook} : webhook;
+  const text = `${cfg.label ? `[${cfg.label}]` : ""}[${line.level.toUpperCase()}] ${line.message}`;
+  const targets = new Set();
+  if (cfg.url) targets.add(cfg.url);
+  if (line.level === "critical" && cfg.criticalUrl) targets.add(cfg.criticalUrl);
+  for (const target of targets) await post(target, text);
 }
 
 export async function scan({ client, vault, fromBlock, toBlock, webhook, emit = console.log }) {
@@ -252,7 +273,10 @@ async function main() {
   const vault = getAddress(env("VAULT_ADDRESS"));
   const confirmations = BigInt(env("CONFIRMATIONS", "0"));
   const pollMs = Number(env("POLL_MS", "15000"));
-  const webhook = process.env.ALERT_WEBHOOK_URL || undefined;
+  const label = process.env.NETWORK_LABEL || undefined;
+  const webhookUrl = process.env.ALERT_WEBHOOK_URL || undefined;
+  const criticalUrl = process.env.PAGER_WEBHOOK_URL || undefined;
+  const webhook = webhookUrl || criticalUrl ? {url: webhookUrl, criticalUrl, label} : undefined;
   const minFloatUsdc = process.env.MIN_FLOAT_USDC || undefined;
   const stateFile = env("STATE_FILE", join(here, ".monitor-state.json"));
   const watchReverts = env("WATCH_REVERTS", "1") !== "0";
@@ -282,14 +306,48 @@ async function main() {
     console.log(JSON.stringify({ level: "summary", counts, alerts }));
     return;
   }
+
+  // Health signal, so a monitor that has silently stopped is itself noticed (#16).
+  const health = {startedAt: Date.now(), lastOkAt: 0, lastBlock: null, ticks: 0, errors: 0, alerts: 0, label};
+  const healthPort = Number(process.env.HEALTH_PORT || 0);
+  const maxStaleMs = Number(process.env.HEALTH_MAX_STALE_MS || Math.max(pollMs * 4, 120_000));
+  if (healthPort) startHealthServer(healthPort, health, maxStaleMs);
+
+  const heartbeatMs = Number(process.env.HEARTBEAT_MS || 300_000);
+  const heartbeat = setInterval(
+    () => console.log(JSON.stringify({ ts: new Date().toISOString(), level: "info", heartbeat: true, ...health })),
+    heartbeatMs
+  );
+  heartbeat.unref?.();
+
   for (;;) {
     try {
-      await tick();
+      const { alerts } = await tick();
+      health.lastOkAt = Date.now();
+      health.lastBlock = fromBlock.toString();
+      health.ticks += 1;
+      health.alerts += alerts;
     } catch (err) {
+      health.errors += 1;
       console.error(JSON.stringify({ ts: new Date().toISOString(), level: "error", message: err.message }));
     }
     await new Promise((r) => setTimeout(r, pollMs));
   }
+}
+
+/**
+ * GET /health -> 200 while the last successful tick is recent, 503 once it is not.
+ * Point a container healthcheck or an uptime probe at it: a monitor nobody watches is not monitoring.
+ */
+function startHealthServer(port, health, maxStaleMs) {
+  createServer((req, res) => {
+    const age = health.lastOkAt ? Date.now() - health.lastOkAt : null;
+    const ok = age !== null && age <= maxStaleMs;
+    res.writeHead(ok ? 200 : 503, { "content-type": "application/json" });
+    res.end(JSON.stringify({ ok, ageMs: age, maxStaleMs, ...health }));
+  })
+    .listen(port, () => console.log(JSON.stringify({ level: "info", message: `health endpoint on :${port}/health` })))
+    .unref?.();
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {

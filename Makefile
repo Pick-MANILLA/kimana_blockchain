@@ -4,7 +4,7 @@ NETWORK ?= base_sepolia
 FORGE_STD    := foundry-rs/forge-std@v1.16.2
 OPENZEPPELIN := OpenZeppelin/openzeppelin-contracts@v5.4.0
 
-.PHONY: install build test fmt coverage clean abi e2e slither monitor preflight verify
+.PHONY: install build test fmt coverage clean abi e2e slither monitor preflight verify float oracle
 
 install:
 	rm -rf lib
@@ -43,6 +43,15 @@ preflight:
 #   make verify NETWORK=base_sepolia VAULT=0x...
 verify:
 	NETWORK=$(NETWORK) VAULT=$(VAULT) bash script/verify-deploy.sh
+
+# On-demand treasury report.
+#   make float NETWORK=base_sepolia VAULT=0x...
+float:
+	VAULT_ADDRESS=$(VAULT) forge script script/FloatReport.s.sol --rpc-url $(NETWORK)
+
+# Rate oracle service (needs RPC_URL, VAULT_ADDRESS and a signer; see oracle/README.md)
+oracle:
+	cd oracle && npm ci --silent && node index.mjs
 
 slither:
 	slither . --config-file slither.config.json

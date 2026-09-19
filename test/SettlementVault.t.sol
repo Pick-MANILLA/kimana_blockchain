@@ -110,14 +110,16 @@ contract SettlementVaultTest is BaseTest {
     }
 
     function test_settle_revertsForUnknownPartner() public {
+        _lock(ref, 1 * USDC);
         vm.prank(operator);
         vm.expectRevert(abi.encodeWithSelector(ISettlementVault.PartnerNotAllowed.selector, stranger));
         vault.settle(ref, stranger, 1 * USDC);
     }
 
     function test_settle_revertsForRemovedPartner() public {
+        _lock(ref, 1 * USDC);
         vm.prank(admin);
-        vault.setPartner(ngnPartner, false);
+        vault.setPartner(ngnPartner, pDisabled());
 
         vm.prank(operator);
         vm.expectRevert(abi.encodeWithSelector(ISettlementVault.PartnerNotAllowed.selector, ngnPartner));
@@ -338,18 +340,18 @@ contract SettlementVaultTest is BaseTest {
                 IAccessControl.AccessControlUnauthorizedAccount.selector, operator, DEFAULT_ADMIN_ROLE
             )
         );
-        vault.setPartner(stranger, true);
+        vault.setPartner(stranger, pOffRamp(bytes3(0)));
     }
 
     function test_setPartner_emitsAndRejectsZero() public {
         vm.startPrank(admin);
         vm.expectEmit(address(vault));
-        emit ISettlementVault.PartnerUpdated(stranger, true);
-        vault.setPartner(stranger, true);
+        emit ISettlementVault.PartnerUpdated(stranger, false, true, true, bytes3(0));
+        vault.setPartner(stranger, pOffRamp(bytes3(0)));
         assertTrue(vault.isPartner(stranger));
 
         vm.expectRevert(ISettlementVault.ZeroAddress.selector);
-        vault.setPartner(address(0), true);
+        vault.setPartner(address(0), pOffRamp(bytes3(0)));
         vm.stopPrank();
     }
 

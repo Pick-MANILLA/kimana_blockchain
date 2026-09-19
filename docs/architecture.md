@@ -17,11 +17,11 @@ contract, backend and ops work.
 
 | Actor | On-chain identity | Can do |
 |---|---|---|
-| Admin | Safe multisig | Manage the partner allowlist, set limits, sweep free funds, unpause, rotate roles |
+| Admin | Safe multisig | Manage the partner allowlist and types, set limits, require funding, sweep free funds, unpause, rotate roles |
 | Operator | Custody-provider MPC wallet driven by the backend | `lockQuote`, `cancelQuote`, `settle`, `refund` |
 | Rate oracle | Independent rate publisher (separate key/service from the quoting provider) | `setReferenceRate` |
 | Pauser | Emergency key(s), e.g. an on-call engineer's hardware wallet | `pause` |
-| Partner | Licensed on-ramp or off-ramp wallet (allowlisted) | Receive settlements; `returnSettlement` for its own settlements |
+| Partner | Licensed on-ramp or off-ramp wallet (allowlisted, typed) | On-ramp: `fund(ref, amount)` and receive refunds. Off-ramp: receive settlements for its payout currency and `returnSettlement` for its own settlements |
 
 ## 3. Transfer lifecycle mapping
 
@@ -30,7 +30,7 @@ The backend transfer state machine lives in `Kimana_backend/src/domain/transfers
 | Backend status | On-chain action | Event the backend waits for |
 |---|---|---|
 | `QUOTED` (customer confirms) | Operator calls `lockQuote(ref, quote)` | `QuoteLocked(ref, quoteId, ...)`, plus `RateDivergence` / `ReferenceRateStale` alerts if raised |
-| `AWAITING_FUNDS` | On-ramp partner sends USDC to the vault | ERC-20 `Transfer(onRamp → vault)` *(tracking: see issues)* |
+| `AWAITING_FUNDS` | On-ramp partner calls `fund(ref, usdcAmount + feeUsdc)`, or sends a plain ERC-20 transfer into a shared float | `SettlementFunded(ref, partner, amount, feeUsdc)`, or a bare ERC-20 `Transfer(onRamp → vault)` |
 | `FUNDED` | none | none |
 | `SETTLING` | Operator calls `settle(ref, ngnPartner, amount)`; `amount` must equal the locked quote's `usdcAmount` | `SettlementInitiated(ref, partner, amount)` |
 | `SETTLED` | Event confirmed (N confirmations) | none |
@@ -76,6 +76,13 @@ See [`fx-quote-criteria.md`](fx-quote-criteria.md) for how this maps to the FX q
   rejects amounts that round to zero.
 - **Currencies:** only codes registered by the admin with `setCurrency(code, decimals, enabled)` can be quoted.
   `decimals` always comes from this registry. Disabling a currency blocks new locks only.
+- **Funding:** `fund(ref, amount)` requires `amount == usdcAmount + feeUsdc` of the locked quote, so a deposit
+  is bound on-chain to the terms the customer accepted. It is **optional by default**: an on-ramp partner that
+  delivers into a shared float rather than per transfer cannot satisfy it. Once the partner's delivery model
+  is confirmed, admin calls `setRequireFunding(true)` and `settle` then refuses an unfunded `ref`.
+- **Partner types:** a partner is an on-ramp, an off-ramp, or both. An off-ramp partner may carry a
+  `payoutCurrency`, and `settle` refuses a quote in any other currency (`bytes3(0)` means "any"). `refund`
+  only ever pays an on-ramp partner, because a refund sends money back towards where it came from.
 - **Fee:** `feeUsdc` is recorded for audit. `usdcAmount` is the net amount settled to the partner, so the
   customer's send amount is `usdcAmount + feeUsdc`.
 - **Expiry:** `lockQuote` requires `block.timestamp < expiresAt ≤ block.timestamp + maxQuoteTtl`.
@@ -106,7 +113,7 @@ See [`fx-quote-criteria.md`](fx-quote-criteria.md) for how this maps to the FX q
 | `settle` tx dropped or stuck | Retry with the **same `ref`**. The contract rejects a second success, so retries are safe. |
 | NGN payout fails | Partner calls `returnSettlement(ref)`, then the operator calls `refund(ref, to)`. |
 | Compromised operator key | Pauser pauses. Admin revokes `OPERATOR_ROLE` and grants a new wallet. The operator can only pay allowlisted partners, within limits. |
-| Compromised partner | Admin removes it from the allowlist. |
+| Compromised partner | Admin sets it to `(false, false, false, 0x000000)`, which stops it settling, funding and receiving refunds. |
 | `lockQuote` reverts with `QuoteExpired` | Customer must request a new quote. Never retry with the same quote. |
 | `lockQuote` reverts with `RateDivergenceTooHigh` | Quoting provider is off. Stop quoting that currency and page ops. |
 | `RateDivergence` / `ReferenceRateStale` alert | Monitor pages ops; investigate the quoting provider or the oracle. |

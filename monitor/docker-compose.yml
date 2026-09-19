@@ -1,0 +1,50 @@
+# One monitor per deployed network (issue #16).
+#
+#   cd monitor
+#   cp .env.monitor.example .env      # fill in per-network values
+#   docker compose up -d
+#   docker compose logs -f monitor-base-sepolia
+#
+# Build context is the repo root, because the image needs ../abi/SettlementVault.json.
+services:
+  monitor-base-sepolia:
+    build:
+      context: ..
+      dockerfile: monitor/Dockerfile
+    restart: unless-stopped
+    environment:
+      NETWORK_LABEL: base-sepolia
+      RPC_URL: ${BASE_SEPOLIA_RPC_URL}
+      VAULT_ADDRESS: ${BASE_SEPOLIA_VAULT}
+      CONFIRMATIONS: "2"
+      MIN_FLOAT_USDC: "100"
+      POLL_MS: "15000"
+      ALERT_WEBHOOK_URL: ${ALERT_WEBHOOK_URL}
+      PAGER_WEBHOOK_URL: ${PAGER_WEBHOOK_URL}
+    volumes:
+      - state-base-sepolia:/state
+    ports:
+      - "8081:8080"
+
+  # Copy this block per mainnet, once #1 is decided. Note the higher confirmation count.
+  # monitor-base:
+  #   build:
+  #     context: ..
+  #     dockerfile: monitor/Dockerfile
+  #   restart: unless-stopped
+  #   environment:
+  #     NETWORK_LABEL: base
+  #     RPC_URL: ${BASE_RPC_URL}
+  #     VAULT_ADDRESS: ${BASE_VAULT}
+  #     CONFIRMATIONS: "5"
+  #     MIN_FLOAT_USDC: "50000"
+  #     ALERT_WEBHOOK_URL: ${ALERT_WEBHOOK_URL}
+  #     PAGER_WEBHOOK_URL: ${PAGER_WEBHOOK_URL}
+  #   volumes:
+  #     - state-base:/state
+  #   ports:
+  #     - "8082:8080"
+
+volumes:
+  state-base-sepolia:
+  # state-base:

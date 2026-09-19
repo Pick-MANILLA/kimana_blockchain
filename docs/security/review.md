@@ -3,6 +3,10 @@
 Scope: `src/SettlementVault.sol`, `src/interfaces/ISettlementVault.sol`, `src/libraries/*`.
 This is an internal review. It does **not** replace the external audit required before mainnet.
 
+> The full threat model and the audit-readiness checklist now live in [`threat-model.md`](threat-model.md)
+> (issue #14). This page remains the record of the Slither run and the nine findings from the quote-locking
+> review; start with the threat model.
+
 ## Static analysis (Slither 0.11.6)
 
 Command: `make slither` (config: `slither.config.json`, excludes `lib/`, `test/`, `script/`).
@@ -20,7 +24,7 @@ No other findings.
 
 | Area | Result |
 |---|---|
-| **Access control** | Every state-changing function is role-gated: operator (`lockQuote`, `cancelQuote`, `settle`, `refund`), rate oracle (`setReferenceRate`), admin (`setPartner`, `setLimits`, `setQuoteConfig`, `sweep`, `unpause`), pauser (`pause`). The one exception is `returnSettlement`, which only the settlement's own partner can call. Admin transfer is two-step with a delay. |
+| **Access control** | Every state-changing function is role-gated: operator (`lockQuote`, `cancelQuote`, `settle`, `refund`), rate oracle (`setReferenceRate`), admin (`setPartner`, `setLimits`, `setQuoteConfig`, `setRequireFunding`, `sweep`, `unpause`), pauser (`pause`). The two exceptions are `returnSettlement`, which only the settlement's own partner can call, and `fund`, which only an allowlisted on-ramp partner can call. Admin transfer is two-step with a delay. |
 | **Reentrancy** | Functions that move funds are `nonReentrant` and follow checks-effects-interactions. `lockQuote` and `cancelQuote` make no external calls. |
 | **Duplicate money movement** | A `ref` can be settled once; a `quoteId` can be locked once. Invariant tests cover this. |
 | **Arithmetic** | Solidity 0.8 checked maths. `FxMath.receiveAmount` cannot overflow for realistic values: amount < 2^64, rate < 2^64, 10^18 gives about 2^188. Rounds down, and the backend uses the same rule. |

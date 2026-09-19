@@ -1,0 +1,15 @@
+{
+  "name": "kimana-rate-oracle",
+  "private": true,
+  "type": "module",
+  "description": "Publishes independent FX reference rates to SettlementVault so quote divergence can be checked on-chain.",
+  "scripts": {
+    "start": "node index.mjs",
+    "once": "node index.mjs --once",
+    "dry": "DRY_RUN=1 node index.mjs --once"
+  },
+  "engines": { "node": ">=20" },
+  "dependencies": {
+    "viem": "2.38.0"
+  }
+}

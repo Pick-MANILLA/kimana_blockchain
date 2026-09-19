@@ -69,3 +69,23 @@ jobs:
 
       - name: Run end-to-end test
         run: make e2e
+
+  oracle:
+    name: Rate oracle unit tests
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install oracle dependencies
+        run: cd oracle && npm install --no-audit --no-fund
+
+      - name: Integer-only rate maths
+        run: cd oracle && node --test test.mjs
