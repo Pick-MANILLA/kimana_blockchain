@@ -1,0 +1,17 @@
+{
+  "name": "kimana-custody-poc",
+  "version": "1.0.0",
+  "description": "Dfns custody PoC for Kimana SettlementVault — lockQuote → settle on Base Sepolia",
+  "type": "module",
+  "scripts": {
+    "poc": "node dfns-poc.mjs",
+    "approver": "node dfns-policy-approver.mjs"
+  },
+  "dependencies": {
+    "dotenv": "16.4.5",
+    "ethers": "6.13.4"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
