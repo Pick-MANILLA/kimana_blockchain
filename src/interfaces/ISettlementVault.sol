@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+
 /// @title ISettlementVault
 /// @notice On-chain settlement leg of a Kimana transfer. The vault holds USDC and releases it to allowlisted
 ///         off-ramp partners, who pay out naira (or another local currency) off-chain.
@@ -104,6 +106,7 @@ interface ISettlementVault {
     event RequireFundingUpdated(bool required);
     event LimitsUpdated(uint256 maxPerSettlement, uint256 dailyLimit);
     event Swept(address indexed to, uint256 amount);
+    event TokenRescued(IERC20 indexed token, address indexed to, uint256 amount);
 
     event QuoteLocked(
         bytes32 indexed ref,
@@ -159,6 +162,7 @@ interface ISettlementVault {
     error ZeroRate();
     error CurrencyNotSupported(bytes3 currency);
     error QuoteLockTooOld(bytes32 ref, uint64 lockedAt, uint64 maxSettleDelay);
+    error CannotRescueAssetToken();
 
     error AlreadyFunded(bytes32 ref);
     error FundAmountMismatch(bytes32 ref, uint256 provided, uint256 expected);
@@ -218,6 +222,8 @@ interface ISettlementVault {
     function setQuoteConfig(QuoteConfig calldata config) external;
     function setCurrency(bytes3 currency, uint8 decimals, bool enabled) external;
     function sweep(address to, uint256 amount) external;
+    function rescueToken(IERC20 token, address to, uint256 amount) external;
+
     function pause() external;
     function unpause() external;
 
