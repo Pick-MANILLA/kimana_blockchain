@@ -1,0 +1,85 @@
+name: Blockchain Security & Static Analysis
+
+permissions:
+  contents: read
+
+on:
+  push:
+    branches: [main, master, develop]
+  pull_request:
+  workflow_dispatch:
+
+env:
+  FOUNDRY_PROFILE: ci
+
+jobs:
+  # 1. Slither Automated Static Analysis
+  slither:
+    name: Slither SAST Analysis
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+
+      - name: Install Dependencies
+        run: make install
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Slither
+        run: pip install slither-analyzer solc-select
+
+      - name: Run Slither Static Analysis
+        run: slither . --config-file slither.config.json --fail-on medium
+
+  # 2. EVM Hardfork Compatibility Verification (Cancun vs Shanghai)
+  evm-compatibility:
+    name: EVM Hardfork Bytecode Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+
+      - name: Install Dependencies
+        run: make install
+
+      - name: Compile with Cancun (Default)
+        run: forge build --evm-version cancun --sizes
+
+      - name: Compile with Shanghai (L2 Rollup Fallback)
+        run: forge build --evm-version shanghai --sizes
+
+      - name: Verify Contract Storage Layout Stability
+        run: |
+          forge inspect SettlementVault storageLayout --pretty > /tmp/storage_layout.txt
+          echo "Current Storage Layout:"
+          cat /tmp/storage_layout.txt
+
+  # 3. High-Depth Invariant & Fuzzing Suite
+  fuzzing:
+    name: Invariant & Deep Fuzz Testing
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+
+      - name: Install Dependencies
+        run: make install
+
+      - name: Run Invariant & Fuzzing Suite
+        run: forge test --match-path "test/invariant/*" -vvv
+        env:
+          FOUNDRY_FUZZ_RUNS: 5000
+          FOUNDRY_INVARIANT_RUNS: 512
+          FOUNDRY_INVARIANT_DEPTH: 100
