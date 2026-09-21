@@ -19,6 +19,7 @@ customer's bank account. **This repo covers only the USDC movement between the K
 | `SettlementVault` contract | ✅ quote lock, settle, partner return, refund, limits, pause, roles |
 | FX quote criteria (settlement side) | ✅ expiry, single-use lock, counterparty-amount check, divergence alerts ([details](docs/fx-quote-criteria.md)) |
 | Unit, fuzz and invariant tests | ✅ 126 unit and fuzz tests + 6 invariants, 100% line and branch coverage |
+| Fork tests against real USDC (blocklist + pause) | ✅ `test/fork/`, on demand with RPC URLs, skipped otherwise (see below) |
 | Local integration test (Anvil + monitor) | ✅ `make e2e`, runs in CI |
 | Inbound USDC accounting (`fund`) | ✅ deposits bound on-chain to the locked quote (optional gate: `requireFunding`) |
 | Partner types | ✅ on-ramp / off-ramp, with per-currency payout restriction |
@@ -93,6 +94,7 @@ test/
   QuoteLock.t.sol                FX quote acceptance criteria
   FundingAndPartners.t.sol       fund() accounting and partner types
   Blocklist.t.sol                behaviour when Circle blocklists an address
+  fork/                          fork tests against real USDC on testnets (optional, need RPC URLs)
   Libraries.t.sol
   invariant/                     handler-based invariant tests
   mocks/MockUSDC.sol
@@ -129,6 +131,24 @@ make float VAULT=0x... NETWORK=base_sepolia   # treasury report
 ```
 
 Dependencies live in `lib/`, which is gitignored. Their versions are pinned in the `Makefile`. Run `make install` again after a version bump.
+
+## Fork tests against real USDC (optional)
+
+The unit tests use `MockUSDC`. `test/fork/SettlementVault.fork.t.sol` additionally forks a testnet and exercises the
+vault against **Circle's real USDC proxy** on the [configured networks](docs/networks.md) — including its
+6-decimal check and the blocklist/pause behaviour mocked by `MockBlocklistUSDC` (issue #3). To run them, set the
+RPC URLs (fill `.env` from `.env.example`, or export them):
+
+```bash
+. .env   # already provides BASE_SEPOLIA_RPC_URL
+forge test --match-path test/fork/SettlementVault.fork.t.sol -vv
+```
+
+Each network's suite only runs when its variable is set — `BASE_SEPOLIA_RPC_URL` (required), plus optionally
+`ARBITRUM_SEPOLIA_RPC_URL` and `POLYGON_AMOY_RPC_URL`. Without them the tests are **skipped**, so plain `forge test`
+stays green in CI with no RPC access. The tests impersonate the real USDC `blacklister`/`pauser` role holders to
+blocklist a test partner and pause the token, exactly as Circle can, and assert `settle`/`fund`/`refund` revert
+with the real token's revert data while vault state stays untouched.
 
 ## Deploying (testnet)
 
