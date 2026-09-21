@@ -17,6 +17,24 @@ forge fmt
 forge build --sizes
 forge test -vvv
 forge coverage          # new code should be covered
+forge snapshot --check  # gas snapshot is up to date
+```
+
+### Gas snapshots
+
+`forge snapshot` records each test's gas usage in the committed `.gas-snapshot` file. CI runs
+`forge snapshot --check` and **fails if the gas usage changes without the snapshot being refreshed**,
+so update the snapshot whenever you touch code that affects gas. The snapshot is generated with the
+`ci` profile (matching CI), so always refresh like this:
+
+```bash
+FOUNDRY_PROFILE=ci forge snapshot
+```
+
+Then re-run the check to confirm it is clean:
+
+```bash
+FOUNDRY_PROFILE=ci forge snapshot --check
 ```
 
 ## Rules for contract code

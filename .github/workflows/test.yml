@@ -39,6 +39,9 @@ jobs:
       - name: Run Forge tests
         run: forge test -vvv
 
+      - name: Gas snapshot is up to date
+        run: forge snapshot --check
+
       - name: Coverage summary
         run: forge coverage --report summary --no-match-coverage "(test|script)/"
 
