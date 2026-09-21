@@ -1,0 +1,107 @@
+[
+  {
+    "type": "function",
+    "name": "lockQuote",
+    "stateMutability": "nonpayable",
+    "inputs": [
+      { "name": "ref", "type": "bytes32" },
+      {
+        "name": "q",
+        "type": "tuple",
+        "components": [
+          { "name": "quoteId",            "type": "bytes32" },
+          { "name": "receiveCurrency",    "type": "bytes3"  },
+          { "name": "expiresAt",          "type": "uint64"  },
+          { "name": "rate",               "type": "uint256" },
+          { "name": "usdcAmount",         "type": "uint256" },
+          { "name": "feeUsdc",            "type": "uint256" },
+          { "name": "receiveAmountMinor", "type": "uint256" }
+        ]
+      }
+    ],
+    "outputs": []
+  },
+  {
+    "type": "function",
+    "name": "cancelQuote",
+    "stateMutability": "nonpayable",
+    "inputs": [
+      { "name": "ref", "type": "bytes32" }
+    ],
+    "outputs": []
+  },
+  {
+    "type": "function",
+    "name": "settle",
+    "stateMutability": "nonpayable",
+    "inputs": [
+      { "name": "ref",     "type": "bytes32" },
+      { "name": "partner", "type": "address" },
+      { "name": "amount",  "type": "uint256" }
+    ],
+    "outputs": []
+  },
+  {
+    "type": "function",
+    "name": "refund",
+    "stateMutability": "nonpayable",
+    "inputs": [
+      { "name": "ref", "type": "bytes32" },
+      { "name": "to",  "type": "address" }
+    ],
+    "outputs": []
+  },
+  {
+    "type": "function",
+    "name": "setReferenceRate",
+    "stateMutability": "nonpayable",
+    "inputs": [
+      { "name": "currency", "type": "bytes3"  },
+      { "name": "rate",     "type": "uint256" }
+    ],
+    "outputs": []
+  },
+  {
+    "type": "function",
+    "name": "getSettlement",
+    "stateMutability": "view",
+    "inputs": [
+      { "name": "ref", "type": "bytes32" }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "tuple",
+        "components": [
+          { "name": "partner",    "type": "address" },
+          { "name": "settledAt",  "type": "uint64"  },
+          { "name": "status",     "type": "uint8"   },
+          { "name": "amount",     "type": "uint256" }
+        ]
+      }
+    ]
+  },
+  {
+    "type": "event",
+    "name": "QuoteLocked",
+    "inputs": [
+      { "name": "ref",                "type": "bytes32", "indexed": true  },
+      { "name": "quoteId",            "type": "bytes32", "indexed": true  },
+      { "name": "receiveCurrency",    "type": "bytes3",  "indexed": false },
+      { "name": "rate",               "type": "uint256", "indexed": false },
+      { "name": "usdcAmount",         "type": "uint256", "indexed": false },
+      { "name": "feeUsdc",            "type": "uint256", "indexed": false },
+      { "name": "receiveAmountMinor", "type": "uint256", "indexed": false },
+      { "name": "expiresAt",          "type": "uint64",  "indexed": false }
+    ]
+  },
+  {
+    "type": "event",
+    "name": "SettlementInitiated",
+    "inputs": [
+      { "name": "ref",     "type": "bytes32", "indexed": true  },
+      { "name": "partner", "type": "address", "indexed": true  },
+      { "name": "amount",  "type": "uint256", "indexed": false }
+    ]
+  }
+]
