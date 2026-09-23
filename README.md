@@ -29,15 +29,16 @@ customer's bank account. **This repo covers only the USDC movement between the K
 | Internal security review | ✅ [Slither + manual](docs/security/review.md) |
 | Local deploy script | ✅ verified against Anvil |
 | Deploy preflight and post-deploy checks | ✅ `make preflight`, `make verify` |
-| Testnet deployment | ⏳ next: Base Sepolia |
+| Testnet deployment | ⏳ **next** — Base Sepolia, [runbook](docs/runbooks/deploy.md) |
 | Backend integration (Rust / alloy) | ⏳ not started |
 | Custody (Fireblocks, Cobo or Dfns) integration | ⏳ not started |
 | External audit | ⏳ required before mainnet |
 
 See the [open issues](https://github.com/Pick-MANILLA/kimana_contract/issues) for what to pick up.
 
-> **Chain:** EVM (confirmed). The vault works on any EVM chain with native USDC: **Base** (default), **Arbitrum**,
-> **Polygon** and **Ethereum** are configured, with testnets. BNB Chain is not supported (its bridged USDC has 18
+> **Chain: Base** ([decided](docs/adr/0001-settlement-network.md), #1). Base Sepolia for the testnet deployment,
+> Base mainnet after the audit. The vault runs on any EVM chain with native 6-decimal USDC — Arbitrum, Polygon and
+> Ethereum are configured too — but we deploy to one. BNB Chain is not supported (its bridged USDC has 18
 > decimals). See [`docs/networks.md`](docs/networks.md).
 
 ## How it works
@@ -110,7 +111,7 @@ deployments/
   84532.example.json             per-network address registry (copy to <chainId>.json)
 docs/
   architecture.md
-  adr/0001-settlement-network.md which chain to settle on (pending sign-off)
+  adr/0001-settlement-network.md which chain to settle on — Base (accepted)
   runbooks/deploy.md             step-by-step testnet deployment
   runbooks/incident.md           pause, rotate keys, respond to alerts
   runbooks/monitoring.md         running the monitor per network

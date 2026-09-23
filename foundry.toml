@@ -17,6 +17,12 @@ remappings = [
     "forge-std/=lib/forge-std/src/",
 ]
 
+# Fallback for a chain that has not activated Cancun, where solc's MCOPY would be an invalid opcode
+# (issue #25). `make preflight` probes the target chain and says when this is needed. It produces
+# different bytecode from the default profile, so build, deploy and verify all under this profile.
+[profile.shanghai]
+evm_version = "shanghai"
+
 [fuzz]
 runs = 1_000
 

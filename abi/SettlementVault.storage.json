@@ -276,7 +276,6 @@
       "label": "struct ISettlementVault.CurrencyInfo",
       "members": [
         {
-          "astId": 50701,
           "contract": "src/SettlementVault.sol:SettlementVault",
           "label": "decimals",
           "offset": 0,
@@ -284,7 +283,6 @@
           "type": "t_uint8"
         },
         {
-          "astId": 50703,
           "contract": "src/SettlementVault.sol:SettlementVault",
           "label": "enabled",
           "offset": 1,
@@ -299,7 +297,6 @@
       "label": "struct ISettlementVault.Funding",
       "members": [
         {
-          "astId": 50681,
           "contract": "src/SettlementVault.sol:SettlementVault",
           "label": "partner",
           "offset": 0,
@@ -307,7 +304,6 @@
           "type": "t_address"
         },
         {
-          "astId": 50683,
           "contract": "src/SettlementVault.sol:SettlementVault",
           "label": "fundedAt",
           "offset": 20,
@@ -315,7 +311,6 @@
           "type": "t_uint64"
         },
         {
-          "astId": 50685,
           "contract": "src/SettlementVault.sol:SettlementVault",
           "label": "returnedAt",
           "offset": 0,
@@ -323,7 +318,6 @@
           "type": "t_uint64"
         },
         {
-          "astId": 50687,
           "contract": "src/SettlementVault.sol:SettlementVault",
           "label": "amount",
           "offset": 0,
@@ -338,7 +332,6 @@
       "label": "struct ISettlementVault.LockedQuote",
       "members": [
         {
-          "astId": 50659,
           "contract": "src/SettlementVault.sol:SettlementVault",
           "label": "quoteId",
           "offset": 0,
@@ -346,7 +339,6 @@
           "type": "t_bytes32"
         },
         {
-          "astId": 50661,
           "contract": "src/SettlementVault.sol:SettlementVault",
           "label": "receiveCurrency",
           "offset": 0,
@@ -354,7 +346,6 @@
           "type": "t_bytes3"
         },
         {
-          "astId": 50663,
           "contract": "src/SettlementVault.sol:SettlementVault",
           "label": "receiveDecimals",
           "offset": 3,
@@ -362,7 +353,6 @@
           "type": "t_uint8"
         },
         {
-          "astId": 50665,
           "contract": "src/SettlementVault.sol:SettlementVault",
           "label": "cancelled",
           "offset": 4,
@@ -370,7 +360,6 @@
           "type": "t_bool"
         },
         {
-          "astId": 50667,
           "contract": "src/SettlementVault.sol:SettlementVault",
           "label": "expiresAt",
           "offset": 5,
@@ -378,7 +367,6 @@
           "type": "t_uint64"
         },
         {
-          "astId": 50669,
           "contract": "src/SettlementVault.sol:SettlementVault",
           "label": "lockedAt",
           "offset": 13,
@@ -386,7 +374,6 @@
           "type": "t_uint64"
         },
         {
-          "astId": 50671,
           "contract": "src/SettlementVault.sol:SettlementVault",
           "label": "rate",
           "offset": 0,
@@ -394,7 +381,6 @@
           "type": "t_uint256"
         },
         {
-          "astId": 50673,
           "contract": "src/SettlementVault.sol:SettlementVault",
           "label": "usdcAmount",
           "offset": 0,
@@ -402,7 +388,6 @@
           "type": "t_uint256"
         },
         {
-          "astId": 50675,
           "contract": "src/SettlementVault.sol:SettlementVault",
           "label": "feeUsdc",
           "offset": 0,
@@ -410,7 +395,6 @@
           "type": "t_uint256"
         },
         {
-          "astId": 50677,
           "contract": "src/SettlementVault.sol:SettlementVault",
           "label": "receiveAmountMinor",
           "offset": 0,
@@ -425,7 +409,6 @@
       "label": "struct ISettlementVault.PartnerInfo",
       "members": [
         {
-          "astId": 50691,
           "contract": "src/SettlementVault.sol:SettlementVault",
           "label": "onRamp",
           "offset": 0,
@@ -433,7 +416,6 @@
           "type": "t_bool"
         },
         {
-          "astId": 50693,
           "contract": "src/SettlementVault.sol:SettlementVault",
           "label": "offRamp",
           "offset": 1,
@@ -441,7 +423,6 @@
           "type": "t_bool"
         },
         {
-          "astId": 50695,
           "contract": "src/SettlementVault.sol:SettlementVault",
           "label": "enabled",
           "offset": 2,
@@ -449,7 +430,6 @@
           "type": "t_bool"
         },
         {
-          "astId": 50697,
           "contract": "src/SettlementVault.sol:SettlementVault",
           "label": "payoutCurrency",
           "offset": 3,
@@ -464,7 +444,6 @@
       "label": "struct ISettlementVault.QuoteConfig",
       "members": [
         {
-          "astId": 50713,
           "contract": "src/SettlementVault.sol:SettlementVault",
           "label": "maxQuoteTtl",
           "offset": 0,
@@ -472,7 +451,6 @@
           "type": "t_uint64"
         },
         {
-          "astId": 50715,
           "contract": "src/SettlementVault.sol:SettlementVault",
           "label": "referenceMaxAge",
           "offset": 8,
@@ -480,7 +458,6 @@
           "type": "t_uint64"
         },
         {
-          "astId": 50717,
           "contract": "src/SettlementVault.sol:SettlementVault",
           "label": "maxSettleDelay",
           "offset": 16,
@@ -488,7 +465,6 @@
           "type": "t_uint64"
         },
         {
-          "astId": 50719,
           "contract": "src/SettlementVault.sol:SettlementVault",
           "label": "divergenceAlertBps",
           "offset": 24,
@@ -496,7 +472,6 @@
           "type": "t_uint16"
         },
         {
-          "astId": 50721,
           "contract": "src/SettlementVault.sol:SettlementVault",
           "label": "divergenceMaxBps",
           "offset": 26,
@@ -511,7 +486,6 @@
       "label": "struct ISettlementVault.ReferenceRate",
       "members": [
         {
-          "astId": 50707,
           "contract": "src/SettlementVault.sol:SettlementVault",
           "label": "rate",
           "offset": 0,
@@ -519,7 +493,6 @@
           "type": "t_uint256"
         },
         {
-          "astId": 50709,
           "contract": "src/SettlementVault.sol:SettlementVault",
           "label": "updatedAt",
           "offset": 0,
@@ -534,7 +507,6 @@
       "label": "struct AccessControl.RoleData",
       "members": [
         {
-          "astId": 40994,
           "contract": "src/SettlementVault.sol:SettlementVault",
           "label": "hasRole",
           "offset": 0,
@@ -542,7 +514,6 @@
           "type": "t_mapping(t_address,t_bool)"
         },
         {
-          "astId": 40996,
           "contract": "src/SettlementVault.sol:SettlementVault",
           "label": "adminRole",
           "offset": 0,
@@ -557,7 +528,6 @@
       "label": "struct ISettlementVault.Settlement",
       "members": [
         {
-          "astId": 50632,
           "contract": "src/SettlementVault.sol:SettlementVault",
           "label": "partner",
           "offset": 0,
@@ -565,7 +535,6 @@
           "type": "t_address"
         },
         {
-          "astId": 50634,
           "contract": "src/SettlementVault.sol:SettlementVault",
           "label": "settledAt",
           "offset": 20,
@@ -573,7 +542,6 @@
           "type": "t_uint64"
         },
         {
-          "astId": 50637,
           "contract": "src/SettlementVault.sol:SettlementVault",
           "label": "status",
           "offset": 28,
@@ -581,7 +549,6 @@
           "type": "t_enum(Status)"
         },
         {
-          "astId": 50639,
           "contract": "src/SettlementVault.sol:SettlementVault",
           "label": "amount",
           "offset": 0,
