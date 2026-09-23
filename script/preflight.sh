@@ -118,6 +118,41 @@ else
   ok "chain id $CHAIN, block $(cast block-number --rpc-url "$NETWORK" 2>/dev/null)"
 fi
 
+# --------------------------------------------------------- EVM compatibility
+# Issue #25. `evm_version` is compiled into the bytecode. Under cancun, solc emits MCOPY (EIP-5656)
+# for memory copies; a chain that has not activated Cancun rejects it as an invalid opcode. That
+# surfaces either as a failed deployment or -- worse -- as a vault that deploys and then reverts on
+# the first call that copies memory. Prove the chain runs the opcodes before anyone spends gas.
+head_ "EVM compatibility"
+EVM_VERSION=$(forge config --json 2>/dev/null | jq -r '.evm_version // empty')
+if [ -z "$EVM_VERSION" ]; then
+  warn "could not read evm_version from foundry.toml"
+else
+  ok "building for evm_version '$EVM_VERSION'"
+fi
+case "$EVM_VERSION" in
+  cancun|prague|osaka)
+    if [ -z "$CHAIN" ]; then
+      warn "skipping the opcode probe - the RPC did not answer above"
+    else
+      # eth_call on throwaway init code that performs one MCOPY and returns. No transaction, no key,
+      # no state change. Returns 0x00 where Cancun is live; reverts with an invalid-opcode error where
+      # it is not.
+      MCOPY_PROBE=0x6020600060405e60016000f3
+      if cast call --rpc-url "$NETWORK" --create "$MCOPY_PROBE" >/dev/null 2>&1; then
+        ok "chain executes MCOPY - Cancun is live here, '$EVM_VERSION' bytecode will run"
+      else
+        bad "chain rejects MCOPY - it has not activated Cancun, so '$EVM_VERSION' bytecode will not run.
+        Build and deploy with the fallback profile instead:  FOUNDRY_PROFILE=shanghai forge build --sizes
+        Note the bytecode differs from the default profile, so verify with the same profile."
+      fi
+    fi
+    ;;
+  *)
+    ok "'$EVM_VERSION' predates Cancun - no MCOPY, nothing to probe"
+    ;;
+esac
+
 # ---------------------------------------------------------------- the token
 head_ "Settlement token"
 if [ -n "$CHAIN" ] && is_addr "${USDC_ADDRESS:-}"; then
