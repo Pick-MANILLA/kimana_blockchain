@@ -125,7 +125,8 @@ contract SettlementVault is ISettlementVault, AccessControlDefaultAdminRules, Pa
     function lockQuote(bytes32 ref, QuoteInput calldata q) external onlyRole(OPERATOR_ROLE) whenNotPaused {
         if (ref == bytes32(0)) revert ZeroRef();
         if (q.quoteId == bytes32(0)) revert ZeroQuoteId();
-        if (q.rate == 0 || q.rate > FxMath.MAX_RATE || q.usdcAmount == 0) revert InvalidQuote();
+        if (q.rate == 0 || q.rate > FxMath.MAX_RATE) revert QuoteRateOutOfRange(ref, q.rate, FxMath.MAX_RATE);
+        if (q.usdcAmount == 0) revert QuoteAmountZero(ref);
         CurrencyInfo memory cur = _currencies[q.receiveCurrency];
         if (!cur.enabled) revert CurrencyNotSupported(q.receiveCurrency);
         // Settling requires a lock, so an existing lock also covers already-settled refs.
@@ -138,11 +139,11 @@ contract SettlementVault is ISettlementVault, AccessControlDefaultAdminRules, Pa
         if (q.expiresAt > maxExpiry) revert QuoteTtlTooLong(q.expiresAt, maxExpiry);
 
         if (q.usdcAmount > maxPerSettlement) revert ExceedsPerSettlementLimit(q.usdcAmount, maxPerSettlement);
-        if (q.feeUsdc > maxPerSettlement) revert InvalidQuote();
+        if (q.feeUsdc > maxPerSettlement) revert QuoteFeeExceedsLimit(ref, q.feeUsdc, maxPerSettlement);
 
         // The counterparty amount shown to the customer must follow from the rate exactly.
         uint256 expected = FxMath.receiveAmount(q.usdcAmount, q.rate, cur.decimals);
-        if (expected == 0) revert InvalidQuote();
+        if (expected == 0) revert ReceiveAmountRoundsToZero(ref, q.usdcAmount, q.rate, cur.decimals);
         if (q.receiveAmountMinor != expected) revert ReceiveAmountMismatch(q.receiveAmountMinor, expected);
 
         _checkDivergence(ref, q.receiveCurrency, q.rate);
@@ -324,8 +325,7 @@ contract SettlementVault is ISettlementVault, AccessControlDefaultAdminRules, Pa
     /// @inheritdoc ISettlementVault
     function setReferenceRate(bytes3 currency, uint256 rate) external onlyRole(RATE_ORACLE_ROLE) {
         if (!_currencies[currency].enabled) revert CurrencyNotSupported(currency);
-        if (rate == 0) revert ZeroRate();
-        if (rate > FxMath.MAX_RATE) revert InvalidQuote();
+        if (rate == 0 || rate > FxMath.MAX_RATE) revert ReferenceRateOutOfRange(currency, rate, FxMath.MAX_RATE);
         uint64 nowTs = uint64(block.timestamp);
         _referenceRates[currency] = ReferenceRate({rate: rate, updatedAt: nowTs});
         emit ReferenceRateUpdated(currency, rate, nowTs);

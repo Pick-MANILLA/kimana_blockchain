@@ -2089,11 +2089,6 @@
   },
   {
     "type": "error",
-    "name": "InvalidQuote",
-    "inputs": []
-  },
-  {
-    "type": "error",
     "name": "InvalidQuoteConfig",
     "inputs": []
   },
@@ -2201,6 +2196,17 @@
   },
   {
     "type": "error",
+    "name": "QuoteAmountZero",
+    "inputs": [
+      {
+        "name": "ref",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ]
+  },
+  {
+    "type": "error",
     "name": "QuoteExpired",
     "inputs": [
       {
@@ -2212,6 +2218,27 @@
         "name": "expiresAt",
         "type": "uint64",
         "internalType": "uint64"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "QuoteFeeExceedsLimit",
+    "inputs": [
+      {
+        "name": "ref",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      },
+      {
+        "name": "feeUsdc",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "maxPerSettlement",
+        "type": "uint256",
+        "internalType": "uint256"
       }
     ]
   },
@@ -2255,6 +2282,27 @@
         "name": "ref",
         "type": "bytes32",
         "internalType": "bytes32"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "QuoteRateOutOfRange",
+    "inputs": [
+      {
+        "name": "ref",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      },
+      {
+        "name": "rate",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "maxRate",
+        "type": "uint256",
+        "internalType": "uint256"
       }
     ]
   },
@@ -2313,6 +2361,32 @@
   },
   {
     "type": "error",
+    "name": "ReceiveAmountRoundsToZero",
+    "inputs": [
+      {
+        "name": "ref",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      },
+      {
+        "name": "usdcAmount",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "rate",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "receiveDecimals",
+        "type": "uint8",
+        "internalType": "uint8"
+      }
+    ]
+  },
+  {
+    "type": "error",
     "name": "ReentrancyGuardReentrantCall",
     "inputs": []
   },
@@ -2324,6 +2398,27 @@
         "name": "ref",
         "type": "bytes32",
         "internalType": "bytes32"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "ReferenceRateOutOfRange",
+    "inputs": [
+      {
+        "name": "currency",
+        "type": "bytes3",
+        "internalType": "bytes3"
+      },
+      {
+        "name": "rate",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "maxRate",
+        "type": "uint256",
+        "internalType": "uint256"
       }
     ]
   },
@@ -2426,11 +2521,6 @@
   {
     "type": "error",
     "name": "ZeroQuoteId",
-    "inputs": []
-  },
-  {
-    "type": "error",
-    "name": "ZeroRate",
     "inputs": []
   },
   {
