@@ -60,6 +60,10 @@ contract BlocklistTest is Test {
         );
         vm.stopPrank();
 
+        // A fresh reference rate is required now that the divergence check fails closed (issue #24).
+        vm.prank(oracle);
+        vault.setReferenceRate(NGN, NGN_RATE);
+
         usdc.mint(address(vault), 1_000_000 * USDC);
         usdc.mint(onRampA, 1_000_000 * USDC);
         vm.prank(onRampA);
