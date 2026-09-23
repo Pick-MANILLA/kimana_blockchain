@@ -80,6 +80,13 @@ See [`fx-quote-criteria.md`](fx-quote-criteria.md) for how this maps to the FX q
   is bound on-chain to the terms the customer accepted. It is **optional by default**: an on-ramp partner that
   delivers into a shared float rather than per transfer cannot satisfy it. Once the partner's delivery model
   is confirmed, admin calls `setRequireFunding(true)` and `settle` then refuses an unfunded `ref`.
+- **Deposit accounting:** a deposit made through `fund` is held in `reservedForFunding` until the transfer
+  settles or the deposit is returned. Neither `sweep` nor a settlement for a *different* `ref` can spend it, so
+  a treasury action can never leave the vault unable to honour funding it has accepted (issues #22, #23).
+- **Returning a deposit:** `returnFunding(ref)` pays a deposit back to the partner that made it, once the
+  transfer can never settle — the quote was cancelled, or the lock is older than `maxSettleDelay`. Callable by
+  anyone (the destination and amount come from the recorded deposit) and allowed while paused, so a pause
+  cannot trap a partner's capital.
 - **Partner types:** a partner is an on-ramp, an off-ramp, or both. An off-ramp partner may carry a
   `payoutCurrency`, and `settle` refuses a quote in any other currency (`bytes3(0)` means "any"). `refund`
   only ever pays an on-ramp partner, because a refund sends money back towards where it came from.
@@ -113,6 +120,7 @@ See [`fx-quote-criteria.md`](fx-quote-criteria.md) for how this maps to the FX q
 | `settle` tx dropped or stuck | Retry with the **same `ref`**. The contract rejects a second success, so retries are safe. |
 | NGN payout fails | Partner calls `returnSettlement(ref)`, then the operator calls `refund(ref, to)`. |
 | Compromised operator key | Pauser pauses. Admin revokes `OPERATOR_ROLE` and grants a new wallet. The operator can only pay allowlisted partners, within limits. |
+| Reference rate missing or stale | `lockQuote` **reverts** with `ReferenceRateUnavailable`. Start the rate oracle, or have admin set `allowStaleReferenceRate(true)` for the duration of the outage — an explicit, logged decision. |
 | Compromised partner | Admin sets it to `(false, false, false, 0x000000)`, which stops it settling, funding and receiving refunds. |
 | `lockQuote` reverts with `QuoteExpired` | Customer must request a new quote. Never retry with the same quote. |
 | `lockQuote` reverts with `RateDivergenceTooHigh` | Quoting provider is off. Stop quoting that currency and page ops. |
