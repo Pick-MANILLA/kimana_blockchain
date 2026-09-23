@@ -12,11 +12,15 @@ add a second when a partner or the custody provider requires it.
 
 ## 0. Prerequisites
 
+Run this **on a machine you control**. The deployer key lives here, so a cloud IDE or a shared VM is the
+wrong place for it. On Windows, install WSL first (`wsl --install` in an admin PowerShell, then reboot) and
+work inside the Ubuntu shell — Foundry does not run natively on Windows.
+
 ```bash
 curl -L https://foundry.paradigm.xyz | bash && foundryup
 git clone https://github.com/Pick-MANILLA/kimana_contract.git && cd kimana_contract
 make install
-forge test          # 97 tests must pass
+forge test          # 159 tests must pass
 make e2e            # full flow on a local chain (needs Node 20+)
 ```
 
@@ -30,7 +34,7 @@ Testnet wallets are throwaway, but never reuse them on mainnet — there, the op
 from the custody provider and the admin is a real Safe.
 
 ```bash
-cast wallet new      # run 4 times
+cast wallet new      # run 5 times, one per row of the table below
 ```
 
 Record what each one is for:
@@ -107,8 +111,15 @@ make preflight NETWORK=base_sepolia
 It checks the toolchain and `lib/`, that `.env` holds no private key, that all four role addresses are set,
 valid and **different**, that the limits are sane, that the RPC answers with chain id 84532, that
 `USDC_ADDRESS` has code and **6 decimals**, that the operator, pauser and oracle have gas, that
-`forge test` passes and `abi/SettlementVault.json` is current. On a mainnet alias it also refuses to
-pass until the audit and the partner and regulatory approvals are recorded.
+`forge test` passes and `abi/SettlementVault.json` is current.
+
+It also **probes the chain for `MCOPY`** (issue #25). The default build targets Cancun, and a chain that has
+not activated it rejects that opcode — the vault would either fail to deploy or deploy and then revert in
+use. Base passes. If some other chain ever fails this, build, deploy **and verify** with
+`make build-shanghai`, which produces different bytecode from the default profile.
+
+On a mainnet alias preflight also refuses to pass until the audit and the partner and regulatory approvals
+are recorded.
 
 Add `DEPLOYER_ADDRESS=$(cast wallet address --account kimana-deployer)` to check the deployer's gas
 balance and that it holds none of the roles. Use `SKIP_TESTS=1` to skip `forge test` on a re-run.
@@ -277,8 +288,8 @@ cast call $VAULT "getSettlement(bytes32)((address,uint64,uint8,uint256))" $REF -
 cast call $VAULT "reservedForRefunds()(uint256)" --rpc-url $RPC           # 0
 ```
 
-Worth trying too, to see the guard rails. `cast` prints the revert reason; if it shows raw hex instead,
-decode it with `cast 4byte-decode <data>`:
+Worth trying too, to see the guard rails. `cast` prints the revert reason; if it shows raw hex instead, look
+the selector up in `abi/SettlementVault.errors.json`, or run `cast 4byte-decode <data>`:
 
 ```bash
 # An expired quote is rejected
@@ -325,6 +336,8 @@ git add deployments/84532.json && git commit -m "chore: record the Base Sepolia 
 Then tell the backend team:
 - the vault address and chain id;
 - `abi/SettlementVault.json`;
+- `abi/SettlementVault.errors.json` — 4-byte selector to custom error signature, so a revert shows up as
+  `QuoteRateOutOfRange(...)` and not four unexplained bytes (#29);
 - [`../fx-quote-criteria.md`](../fx-quote-criteria.md), "What the backend must do to use this".
 
 That unblocks issues #9 and #10.
