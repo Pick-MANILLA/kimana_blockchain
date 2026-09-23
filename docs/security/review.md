@@ -11,11 +11,15 @@ This is an internal review. It does **not** replace the external audit required 
 
 Command: `make slither` (config: `slither.config.json`, excludes `lib/`, `test/`, `script/`).
 
+CI runs Slither on every push and pull request. `script/slither-gate.sh` fails the build on any Medium or High
+finding that is not accepted in the table below. The gate reads this table, so keep its format: the detector name
+in backticks in the first column, the affected functions in backticks in the second, and an assessment that starts
+with **Accepted.** A finding matches on detector and function, not on line numbers.
+
 | Finding | Location | Assessment |
 |---|---|---|
 | `timestamp`: comparisons with `block.timestamp` | `lockQuote`, `settle`, `_checkDivergence` | **Accepted.** Quote windows are 90 s to 15 min and reference ages are about 1 hour. A few seconds of sequencer or validator skew cannot change the outcome in a way that matters. |
 | `incorrect-equality`: `r.updatedAt == 0` | `_checkDivergence` | **Accepted.** `0` is the "never set" sentinel; `setReferenceRate` always writes `block.timestamp > 0`. |
-
 | `cyclomatic-complexity` (13) | `lockQuote` | **Accepted.** The function is a linear list of input checks, and every branch has a dedicated test (100% branch coverage). |
 
 No other findings.
@@ -52,4 +56,3 @@ No other findings.
 - External audit (#14)
 - Fork tests against real USDC, including blocklisting (#3, #7)
 - Partner-type restrictions (#8)
-- Slither in CI (#5)
