@@ -11,6 +11,7 @@ on:
 
 env:
   FOUNDRY_PROFILE: ci
+  FOUNDRY_VERSION: v1.5.1
 
 jobs:
   # Slither runs in the `slither` job of ci.yml (test.yml), via crytic/slither-action with a pinned
@@ -26,6 +27,8 @@ jobs:
 
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: ${{ env.FOUNDRY_VERSION }}
 
       - name: Install Dependencies
         run: make install
@@ -55,6 +58,8 @@ jobs:
 
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: ${{ env.FOUNDRY_VERSION }}
 
       - name: Install Dependencies
         run: make install
