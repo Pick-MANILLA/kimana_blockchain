@@ -1,4 +1,4 @@
-# Contributing to kimana_blockchain
+# Contributing to kimana_contract
 
 Thanks for helping build Kimana's settlement layer. This code moves real money, so the bar is high but clear.
 
