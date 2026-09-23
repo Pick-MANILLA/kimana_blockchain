@@ -82,29 +82,39 @@ contract QuoteLockTest is BaseTest {
 
         q = _quoteInput(ref, amount);
         q.rate = FxMath.MAX_RATE + 1;
-        vm.expectRevert(ISettlementVault.InvalidQuote.selector);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                ISettlementVault.QuoteRateOutOfRange.selector, ref, FxMath.MAX_RATE + 1, FxMath.MAX_RATE
+            )
+        );
         vault.lockQuote(ref, q);
 
         q = _quoteInput(ref, amount);
         q.feeUsdc = MAX_PER_SETTLEMENT + 1;
-        vm.expectRevert(ISettlementVault.InvalidQuote.selector);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                ISettlementVault.QuoteFeeExceedsLimit.selector, ref, MAX_PER_SETTLEMENT + 1, MAX_PER_SETTLEMENT
+            )
+        );
         vault.lockQuote(ref, q);
 
         // Counterparty amount that rounds to zero
         q = _quoteInput(ref, 1);
         q.rate = 1;
         q.receiveAmountMinor = 0;
-        vm.expectRevert(ISettlementVault.InvalidQuote.selector);
+        vm.expectRevert(
+            abi.encodeWithSelector(ISettlementVault.ReceiveAmountRoundsToZero.selector, ref, 1, 1, NGN_DECIMALS)
+        );
         vault.lockQuote(ref, q);
 
         q = _quoteInput(ref, amount);
         q.rate = 0;
-        vm.expectRevert(ISettlementVault.InvalidQuote.selector);
+        vm.expectRevert(abi.encodeWithSelector(ISettlementVault.QuoteRateOutOfRange.selector, ref, 0, FxMath.MAX_RATE));
         vault.lockQuote(ref, q);
 
         q = _quoteInput(ref, amount);
         q.usdcAmount = 0;
-        vm.expectRevert(ISettlementVault.InvalidQuote.selector);
+        vm.expectRevert(abi.encodeWithSelector(ISettlementVault.QuoteAmountZero.selector, ref));
         vault.lockQuote(ref, q);
 
         vm.stopPrank();
@@ -408,11 +418,17 @@ contract QuoteLockTest is BaseTest {
 
     function test_setReferenceRate_validatesAndEmits() public {
         vm.startPrank(rateOracle);
-        vm.expectRevert(ISettlementVault.ZeroRate.selector);
+        vm.expectRevert(
+            abi.encodeWithSelector(ISettlementVault.ReferenceRateOutOfRange.selector, NGN, 0, FxMath.MAX_RATE)
+        );
         vault.setReferenceRate(NGN, 0);
         vm.expectRevert(abi.encodeWithSelector(ISettlementVault.CurrencyNotSupported.selector, GHS));
         vault.setReferenceRate(GHS, NGN_RATE);
-        vm.expectRevert(ISettlementVault.InvalidQuote.selector);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                ISettlementVault.ReferenceRateOutOfRange.selector, NGN, FxMath.MAX_RATE + 1, FxMath.MAX_RATE
+            )
+        );
         vault.setReferenceRate(NGN, FxMath.MAX_RATE + 1);
 
         vm.expectEmit(address(vault));
