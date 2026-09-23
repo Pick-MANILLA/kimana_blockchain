@@ -105,3 +105,32 @@ so retries are safe.
 
 - Record what happened, the transaction hashes and the fix in the team's incident log.
 - If the contract behaved in a way the docs don't describe, open an issue.
+
+## Rate oracle outage (quotes are being blocked)
+
+Symptom: `lockQuote` reverts with `ReferenceRateUnavailable`, and the monitor raises a critical
+`TransactionReverted` alert. Payments have stopped.
+
+This is the fail-closed behaviour working as designed (issue #24) — the vault refuses to lock a rate it cannot
+check.
+
+1. **Fix the oracle first.** It is usually the `oracle/` service having stopped. Restart it and confirm a fresh
+   `ReferenceRateUpdated` event. Locking resumes immediately, with no admin action.
+2. **Only if the outage will be long** and the business accepts the risk, admin may set
+   `setAllowStaleReferenceRate(true)`. While that is on, **there is no on-chain protection against a
+   manipulated or fat-fingered rate.**
+3. Treat step 2 as an incident with an explicit end time. Set a reminder, turn it off, and record who
+   authorised it. The `AllowStaleReferenceRateUpdated` event is the audit trail.
+
+## Partner capital stuck on a cancelled transfer
+
+A partner funded a `ref` that will never settle.
+
+```bash
+cast send $VAULT "cancelQuote(bytes32)" $REF --rpc-url $RPC --private-key $OPERATOR_KEY
+cast send $VAULT "returnFunding(bytes32)" $REF --rpc-url $RPC --private-key <any funded key>
+```
+
+`returnFunding` can be called by anyone and always pays the address that made the deposit, so the partner can
+do it themselves. It works while paused. If the operator never cancelled, it becomes callable anyway once the
+lock is older than `maxSettleDelay`.
