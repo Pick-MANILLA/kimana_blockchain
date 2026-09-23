@@ -39,6 +39,12 @@ jobs:
       - name: Run Forge tests
         run: forge test -vvv
 
+      - name: Gas snapshot is up to date
+        # Unit tests only. Fork tests are skipped without an RPC and record 0 gas, which --tolerance
+        # cannot compare against, and invariant runs record a revert count that differs every run.
+        # Fuzz means still drift by a few gas between seeds, hence the 1% tolerance.
+        run: forge snapshot --check --no-match-path 'test/{fork,invariant}/*' --tolerance 1
+
       - name: Coverage summary
         run: forge coverage --report summary --no-match-coverage "(test|script)/"
 
@@ -46,6 +52,22 @@ jobs:
         run: |
           forge inspect SettlementVault abi --json > /tmp/abi.json
           diff <(jq -S . abi/SettlementVault.json) <(jq -S . /tmp/abi.json)
+
+  slither:
+    name: Slither static analysis
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - name: Run Slither
+        uses: crytic/slither-action@v0.3.0
+        with:
+          slither-config: slither.config.json
+          fail-on: medium
 
   e2e:
     name: Local integration (Anvil + monitor)
