@@ -4,7 +4,7 @@
       "label": "_roles",
       "offset": 0,
       "slot": "0",
-      "type": "t_mapping(t_bytes32,t_struct(RoleData)22_storage)"
+      "type": "t_mapping(t_bytes32,t_struct(RoleData)_storage)"
     },
     {
       "label": "_pendingDefaultAdmin",
@@ -130,25 +130,25 @@
       "label": "_settlements",
       "offset": 0,
       "slot": "16",
-      "type": "t_mapping(t_bytes32,t_struct(Settlement)7623_storage)"
+      "type": "t_mapping(t_bytes32,t_struct(Settlement)_storage)"
     },
     {
       "label": "_funding",
       "offset": 0,
       "slot": "17",
-      "type": "t_mapping(t_bytes32,t_struct(Funding)7671_storage)"
+      "type": "t_mapping(t_bytes32,t_struct(Funding)_storage)"
     },
     {
       "label": "_partners",
       "offset": 0,
       "slot": "18",
-      "type": "t_mapping(t_address,t_struct(PartnerInfo)7681_storage)"
+      "type": "t_mapping(t_address,t_struct(PartnerInfo)_storage)"
     },
     {
       "label": "_quotes",
       "offset": 0,
       "slot": "19",
-      "type": "t_mapping(t_bytes32,t_struct(LockedQuote)7661_storage)"
+      "type": "t_mapping(t_bytes32,t_struct(LockedQuote)_storage)"
     },
     {
       "label": "_quoteUsed",
@@ -160,19 +160,19 @@
       "label": "_referenceRates",
       "offset": 0,
       "slot": "21",
-      "type": "t_mapping(t_bytes3,t_struct(ReferenceRate)7693_storage)"
+      "type": "t_mapping(t_bytes3,t_struct(ReferenceRate)_storage)"
     },
     {
       "label": "_currencies",
       "offset": 0,
       "slot": "22",
-      "type": "t_mapping(t_bytes3,t_struct(CurrencyInfo)7687_storage)"
+      "type": "t_mapping(t_bytes3,t_struct(CurrencyInfo)_storage)"
     },
     {
       "label": "_quoteConfig",
       "offset": 0,
       "slot": "23",
-      "type": "t_struct(QuoteConfig)7705_storage"
+      "type": "t_struct(QuoteConfig)_storage"
     }
   ],
   "types": {
@@ -196,7 +196,7 @@
       "label": "bytes32",
       "numberOfBytes": "32"
     },
-    "t_enum(Status)7613": {
+    "t_enum(Status)": {
       "encoding": "inplace",
       "label": "enum ISettlementVault.Status",
       "numberOfBytes": "1"
@@ -208,26 +208,26 @@
       "numberOfBytes": "32",
       "value": "t_bool"
     },
-    "t_mapping(t_address,t_struct(PartnerInfo)7681_storage)": {
+    "t_mapping(t_address,t_struct(PartnerInfo)_storage)": {
       "encoding": "mapping",
       "key": "t_address",
       "label": "mapping(address => struct ISettlementVault.PartnerInfo)",
       "numberOfBytes": "32",
-      "value": "t_struct(PartnerInfo)7681_storage"
+      "value": "t_struct(PartnerInfo)_storage"
     },
-    "t_mapping(t_bytes3,t_struct(CurrencyInfo)7687_storage)": {
+    "t_mapping(t_bytes3,t_struct(CurrencyInfo)_storage)": {
       "encoding": "mapping",
       "key": "t_bytes3",
       "label": "mapping(bytes3 => struct ISettlementVault.CurrencyInfo)",
       "numberOfBytes": "32",
-      "value": "t_struct(CurrencyInfo)7687_storage"
+      "value": "t_struct(CurrencyInfo)_storage"
     },
-    "t_mapping(t_bytes3,t_struct(ReferenceRate)7693_storage)": {
+    "t_mapping(t_bytes3,t_struct(ReferenceRate)_storage)": {
       "encoding": "mapping",
       "key": "t_bytes3",
       "label": "mapping(bytes3 => struct ISettlementVault.ReferenceRate)",
       "numberOfBytes": "32",
-      "value": "t_struct(ReferenceRate)7693_storage"
+      "value": "t_struct(ReferenceRate)_storage"
     },
     "t_mapping(t_bytes32,t_bool)": {
       "encoding": "mapping",
@@ -236,33 +236,33 @@
       "numberOfBytes": "32",
       "value": "t_bool"
     },
-    "t_mapping(t_bytes32,t_struct(Funding)7671_storage)": {
+    "t_mapping(t_bytes32,t_struct(Funding)_storage)": {
       "encoding": "mapping",
       "key": "t_bytes32",
       "label": "mapping(bytes32 => struct ISettlementVault.Funding)",
       "numberOfBytes": "32",
-      "value": "t_struct(Funding)7671_storage"
+      "value": "t_struct(Funding)_storage"
     },
-    "t_mapping(t_bytes32,t_struct(LockedQuote)7661_storage)": {
+    "t_mapping(t_bytes32,t_struct(LockedQuote)_storage)": {
       "encoding": "mapping",
       "key": "t_bytes32",
       "label": "mapping(bytes32 => struct ISettlementVault.LockedQuote)",
       "numberOfBytes": "32",
-      "value": "t_struct(LockedQuote)7661_storage"
+      "value": "t_struct(LockedQuote)_storage"
     },
-    "t_mapping(t_bytes32,t_struct(RoleData)22_storage)": {
+    "t_mapping(t_bytes32,t_struct(RoleData)_storage)": {
       "encoding": "mapping",
       "key": "t_bytes32",
       "label": "mapping(bytes32 => struct AccessControl.RoleData)",
       "numberOfBytes": "32",
-      "value": "t_struct(RoleData)22_storage"
+      "value": "t_struct(RoleData)_storage"
     },
-    "t_mapping(t_bytes32,t_struct(Settlement)7623_storage)": {
+    "t_mapping(t_bytes32,t_struct(Settlement)_storage)": {
       "encoding": "mapping",
       "key": "t_bytes32",
       "label": "mapping(bytes32 => struct ISettlementVault.Settlement)",
       "numberOfBytes": "32",
-      "value": "t_struct(Settlement)7623_storage"
+      "value": "t_struct(Settlement)_storage"
     },
     "t_mapping(t_uint256,t_uint256)": {
       "encoding": "mapping",
@@ -271,12 +271,11 @@
       "numberOfBytes": "32",
       "value": "t_uint256"
     },
-    "t_struct(CurrencyInfo)7687_storage": {
+    "t_struct(CurrencyInfo)_storage": {
       "encoding": "inplace",
       "label": "struct ISettlementVault.CurrencyInfo",
       "members": [
         {
-          "astId": 7684,
           "contract": "src/SettlementVault.sol:SettlementVault",
           "label": "decimals",
           "offset": 0,
@@ -284,7 +283,6 @@
           "type": "t_uint8"
         },
         {
-          "astId": 7686,
           "contract": "src/SettlementVault.sol:SettlementVault",
           "label": "enabled",
           "offset": 1,
@@ -294,12 +292,11 @@
       ],
       "numberOfBytes": "32"
     },
-    "t_struct(Funding)7671_storage": {
+    "t_struct(Funding)_storage": {
       "encoding": "inplace",
       "label": "struct ISettlementVault.Funding",
       "members": [
         {
-          "astId": 7664,
           "contract": "src/SettlementVault.sol:SettlementVault",
           "label": "partner",
           "offset": 0,
@@ -307,7 +304,6 @@
           "type": "t_address"
         },
         {
-          "astId": 7666,
           "contract": "src/SettlementVault.sol:SettlementVault",
           "label": "fundedAt",
           "offset": 20,
@@ -315,7 +311,6 @@
           "type": "t_uint64"
         },
         {
-          "astId": 7668,
           "contract": "src/SettlementVault.sol:SettlementVault",
           "label": "returnedAt",
           "offset": 0,
@@ -323,7 +318,6 @@
           "type": "t_uint64"
         },
         {
-          "astId": 7670,
           "contract": "src/SettlementVault.sol:SettlementVault",
           "label": "amount",
           "offset": 0,
@@ -333,12 +327,11 @@
       ],
       "numberOfBytes": "96"
     },
-    "t_struct(LockedQuote)7661_storage": {
+    "t_struct(LockedQuote)_storage": {
       "encoding": "inplace",
       "label": "struct ISettlementVault.LockedQuote",
       "members": [
         {
-          "astId": 7642,
           "contract": "src/SettlementVault.sol:SettlementVault",
           "label": "quoteId",
           "offset": 0,
@@ -346,7 +339,6 @@
           "type": "t_bytes32"
         },
         {
-          "astId": 7644,
           "contract": "src/SettlementVault.sol:SettlementVault",
           "label": "receiveCurrency",
           "offset": 0,
@@ -354,7 +346,6 @@
           "type": "t_bytes3"
         },
         {
-          "astId": 7646,
           "contract": "src/SettlementVault.sol:SettlementVault",
           "label": "receiveDecimals",
           "offset": 3,
@@ -362,7 +353,6 @@
           "type": "t_uint8"
         },
         {
-          "astId": 7648,
           "contract": "src/SettlementVault.sol:SettlementVault",
           "label": "cancelled",
           "offset": 4,
@@ -370,7 +360,6 @@
           "type": "t_bool"
         },
         {
-          "astId": 7650,
           "contract": "src/SettlementVault.sol:SettlementVault",
           "label": "expiresAt",
           "offset": 5,
@@ -378,7 +367,6 @@
           "type": "t_uint64"
         },
         {
-          "astId": 7652,
           "contract": "src/SettlementVault.sol:SettlementVault",
           "label": "lockedAt",
           "offset": 13,
@@ -386,7 +374,6 @@
           "type": "t_uint64"
         },
         {
-          "astId": 7654,
           "contract": "src/SettlementVault.sol:SettlementVault",
           "label": "rate",
           "offset": 0,
@@ -394,7 +381,6 @@
           "type": "t_uint256"
         },
         {
-          "astId": 7656,
           "contract": "src/SettlementVault.sol:SettlementVault",
           "label": "usdcAmount",
           "offset": 0,
@@ -402,7 +388,6 @@
           "type": "t_uint256"
         },
         {
-          "astId": 7658,
           "contract": "src/SettlementVault.sol:SettlementVault",
           "label": "feeUsdc",
           "offset": 0,
@@ -410,7 +395,6 @@
           "type": "t_uint256"
         },
         {
-          "astId": 7660,
           "contract": "src/SettlementVault.sol:SettlementVault",
           "label": "receiveAmountMinor",
           "offset": 0,
@@ -420,12 +404,11 @@
       ],
       "numberOfBytes": "192"
     },
-    "t_struct(PartnerInfo)7681_storage": {
+    "t_struct(PartnerInfo)_storage": {
       "encoding": "inplace",
       "label": "struct ISettlementVault.PartnerInfo",
       "members": [
         {
-          "astId": 7674,
           "contract": "src/SettlementVault.sol:SettlementVault",
           "label": "onRamp",
           "offset": 0,
@@ -433,7 +416,6 @@
           "type": "t_bool"
         },
         {
-          "astId": 7676,
           "contract": "src/SettlementVault.sol:SettlementVault",
           "label": "offRamp",
           "offset": 1,
@@ -441,7 +423,6 @@
           "type": "t_bool"
         },
         {
-          "astId": 7678,
           "contract": "src/SettlementVault.sol:SettlementVault",
           "label": "enabled",
           "offset": 2,
@@ -449,7 +430,6 @@
           "type": "t_bool"
         },
         {
-          "astId": 7680,
           "contract": "src/SettlementVault.sol:SettlementVault",
           "label": "payoutCurrency",
           "offset": 3,
@@ -459,12 +439,11 @@
       ],
       "numberOfBytes": "32"
     },
-    "t_struct(QuoteConfig)7705_storage": {
+    "t_struct(QuoteConfig)_storage": {
       "encoding": "inplace",
       "label": "struct ISettlementVault.QuoteConfig",
       "members": [
         {
-          "astId": 7696,
           "contract": "src/SettlementVault.sol:SettlementVault",
           "label": "maxQuoteTtl",
           "offset": 0,
@@ -472,7 +451,6 @@
           "type": "t_uint64"
         },
         {
-          "astId": 7698,
           "contract": "src/SettlementVault.sol:SettlementVault",
           "label": "referenceMaxAge",
           "offset": 8,
@@ -480,7 +458,6 @@
           "type": "t_uint64"
         },
         {
-          "astId": 7700,
           "contract": "src/SettlementVault.sol:SettlementVault",
           "label": "maxSettleDelay",
           "offset": 16,
@@ -488,7 +465,6 @@
           "type": "t_uint64"
         },
         {
-          "astId": 7702,
           "contract": "src/SettlementVault.sol:SettlementVault",
           "label": "divergenceAlertBps",
           "offset": 24,
@@ -496,7 +472,6 @@
           "type": "t_uint16"
         },
         {
-          "astId": 7704,
           "contract": "src/SettlementVault.sol:SettlementVault",
           "label": "divergenceMaxBps",
           "offset": 26,
@@ -506,12 +481,11 @@
       ],
       "numberOfBytes": "32"
     },
-    "t_struct(ReferenceRate)7693_storage": {
+    "t_struct(ReferenceRate)_storage": {
       "encoding": "inplace",
       "label": "struct ISettlementVault.ReferenceRate",
       "members": [
         {
-          "astId": 7690,
           "contract": "src/SettlementVault.sol:SettlementVault",
           "label": "rate",
           "offset": 0,
@@ -519,7 +493,6 @@
           "type": "t_uint256"
         },
         {
-          "astId": 7692,
           "contract": "src/SettlementVault.sol:SettlementVault",
           "label": "updatedAt",
           "offset": 0,
@@ -529,12 +502,11 @@
       ],
       "numberOfBytes": "64"
     },
-    "t_struct(RoleData)22_storage": {
+    "t_struct(RoleData)_storage": {
       "encoding": "inplace",
       "label": "struct AccessControl.RoleData",
       "members": [
         {
-          "astId": 19,
           "contract": "src/SettlementVault.sol:SettlementVault",
           "label": "hasRole",
           "offset": 0,
@@ -542,7 +514,6 @@
           "type": "t_mapping(t_address,t_bool)"
         },
         {
-          "astId": 21,
           "contract": "src/SettlementVault.sol:SettlementVault",
           "label": "adminRole",
           "offset": 0,
@@ -552,12 +523,11 @@
       ],
       "numberOfBytes": "64"
     },
-    "t_struct(Settlement)7623_storage": {
+    "t_struct(Settlement)_storage": {
       "encoding": "inplace",
       "label": "struct ISettlementVault.Settlement",
       "members": [
         {
-          "astId": 7615,
           "contract": "src/SettlementVault.sol:SettlementVault",
           "label": "partner",
           "offset": 0,
@@ -565,7 +535,6 @@
           "type": "t_address"
         },
         {
-          "astId": 7617,
           "contract": "src/SettlementVault.sol:SettlementVault",
           "label": "settledAt",
           "offset": 20,
@@ -573,15 +542,13 @@
           "type": "t_uint64"
         },
         {
-          "astId": 7620,
           "contract": "src/SettlementVault.sol:SettlementVault",
           "label": "status",
           "offset": 28,
           "slot": "0",
-          "type": "t_enum(Status)7613"
+          "type": "t_enum(Status)"
         },
         {
-          "astId": 7622,
           "contract": "src/SettlementVault.sol:SettlementVault",
           "label": "amount",
           "offset": 0,

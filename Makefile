@@ -4,7 +4,7 @@ NETWORK ?= base_sepolia
 FORGE_STD    := foundry-rs/forge-std@v1.16.2
 OPENZEPPELIN := OpenZeppelin/openzeppelin-contracts@v5.4.0
 
-.PHONY: install build test fmt coverage clean abi e2e slither monitor preflight verify float oracle
+.PHONY: install build build-shanghai test fmt coverage clean abi e2e slither monitor preflight verify float oracle
 
 install:
 	rm -rf lib
@@ -12,6 +12,11 @@ install:
 
 build:
 	forge build --sizes
+
+# For a chain that has not activated Cancun (issue #25). `make preflight` tells you when you need it.
+# The bytecode differs from the default profile, so deploy and verify with the same profile.
+build-shanghai:
+	FOUNDRY_PROFILE=shanghai forge build --sizes
 
 test:
 	forge test -vvv
@@ -25,9 +30,11 @@ coverage:
 clean:
 	forge clean
 
-# Regenerate the ABI the backend and monitor use
+# Everything a client needs to talk to the vault and to explain what it said when it refused.
 abi:
 	forge inspect SettlementVault abi --json > abi/SettlementVault.json
+	bash script/error-selectors.sh > abi/SettlementVault.errors.json
+	bash script/storage-layout.sh > abi/SettlementVault.storage.json
 
 # Local integration test: Anvil + LocalE2E.s.sol + monitor
 e2e:
