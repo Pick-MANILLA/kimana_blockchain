@@ -81,8 +81,12 @@ src/
   libraries/FxMath.sol           rate -> counterparty amount, divergence (integer only)
 abi/
   SettlementVault.json           ABI for the backend and monitor (`make abi`)
+  SettlementVault.errors.json    4-byte selector -> custom error signature, for decoding reverts
+  SettlementVault.storage.json   storage layout, diffed in CI so a moved slot cannot pass unnoticed
 script/
   DeploySettlementVault.s.sol
+  error-selectors.sh             regenerates abi/SettlementVault.errors.json
+  storage-layout.sh              regenerates abi/SettlementVault.storage.json
   preflight.sh                   pre-deployment checks (`make preflight`)
   verify-deploy.sh               post-deployment checks (`make verify`)
   FloatReport.s.sol              on-demand treasury report (`make float`)

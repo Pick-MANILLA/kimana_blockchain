@@ -25,9 +25,11 @@ coverage:
 clean:
 	forge clean
 
-# Regenerate the ABI the backend and monitor use
+# Everything a client needs to talk to the vault and to explain what it said when it refused.
 abi:
 	forge inspect SettlementVault abi --json > abi/SettlementVault.json
+	bash script/error-selectors.sh > abi/SettlementVault.errors.json
+	bash script/storage-layout.sh > abi/SettlementVault.storage.json
 
 # Local integration test: Anvil + LocalE2E.s.sol + monitor
 e2e:
