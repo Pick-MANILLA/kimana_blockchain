@@ -27,7 +27,9 @@ FOUNDRY_PROFILE=ci forge snapshot --check --no-match-path 'test/{fork,invariant}
 snapshot being refreshed, so refresh it whenever you touch code that affects gas. Fork and invariant
 tests are excluded on purpose: fork tests are skipped without an RPC and record zero gas, and
 invariant runs record a revert count that differs on every seed. Generate with the `ci` profile so it
-matches CI:
+matches CI, and with the same Foundry release CI pins (`FOUNDRY_VERSION` in
+`.github/workflows/test.yml`) — gas accounting differs between Foundry versions, so a snapshot taken
+on a different one will not match:
 
 ```bash
 FOUNDRY_PROFILE=ci forge snapshot --no-match-path 'test/{fork,invariant}/*'
