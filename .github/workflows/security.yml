@@ -14,11 +14,11 @@ env:
   FOUNDRY_VERSION: v1.5.1
 
 jobs:
-  # Slither runs in the `slither` job of ci.yml (test.yml), via crytic/slither-action with a pinned
-  # version. Duplicating it here with an unpinned `pip install slither-analyzer` is what broke this
-  # workflow: a later Slither release renamed `--fail-on medium` to `--fail-medium`. One pinned job.
+  # Slither runs once, in the `slither` job of test.yml, on a pinned slither-analyzer. It used to be
+  # duplicated here on an unpinned `pip install`, which is what broke this workflow: a later Slither
+  # release renamed `--fail-on medium` to `--fail-medium`.
 
-  # 2. EVM Hardfork Compatibility Verification (Cancun vs Shanghai)
+  # EVM hardfork compatibility (Cancun vs Shanghai) and storage-layout stability
   evm-compatibility:
     name: EVM Hardfork Bytecode Check
     runs-on: ubuntu-latest
