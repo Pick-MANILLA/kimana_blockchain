@@ -18,7 +18,6 @@ customer's bank account. **This repo covers only the USDC movement between the K
 |---|---|
 | `SettlementVault` contract | ✅ quote lock, settle, partner return, refund, limits, pause, roles |
 | FX quote criteria (settlement side) | ✅ expiry, single-use lock, counterparty-amount check, divergence alerts ([details](docs/fx-quote-criteria.md)) |
-| Unit, fuzz and invariant tests | ✅ 126 unit and fuzz tests + 6 invariants, 100% line and branch coverage |
 | Fork tests against real USDC (blocklist + pause) | ✅ `test/fork/`, on demand with RPC URLs, skipped otherwise (see below) |
 | Unit, fuzz and invariant tests | ✅ 151 unit and fuzz tests + 8 invariants, 100% line and branch coverage |
 | Local integration test (Anvil + monitor) | ✅ `make e2e`, runs in CI |

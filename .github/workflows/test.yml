@@ -9,6 +9,10 @@ on:
 
 env:
   FOUNDRY_PROFILE: ci
+  # Pinned so the committed .gas-snapshot is comparable. Gas accounting differs between
+  # Foundry releases, so `forge snapshot --check` against a floating toolchain fails on
+  # upgrade days with diffs nobody caused. Bump this and regenerate the snapshot together.
+  FOUNDRY_VERSION: v1.5.1
 
 jobs:
   check:
@@ -23,6 +27,8 @@ jobs:
 
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: ${{ env.FOUNDRY_VERSION }}
 
       - name: Show Forge version
         run: forge --version
@@ -39,6 +45,12 @@ jobs:
       - name: Run Forge tests
         run: forge test -vvv
 
+      - name: Gas snapshot is up to date
+        # Unit tests only. Fork tests are skipped without an RPC and record 0 gas, which --tolerance
+        # cannot compare against, and invariant runs record a revert count that differs every run.
+        # Fuzz means still drift by a few gas between seeds, hence the 1% tolerance.
+        run: forge snapshot --check --no-match-path 'test/{fork,invariant}/*' --tolerance 1
+
       - name: Coverage summary
         run: forge coverage --report summary --no-match-coverage "(test|script)/"
 
@@ -46,6 +58,39 @@ jobs:
         run: |
           forge inspect SettlementVault abi --json > /tmp/abi.json
           diff <(jq -S . abi/SettlementVault.json) <(jq -S . /tmp/abi.json)
+
+  slither:
+    name: Slither static analysis
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      # Slither compiles through Foundry (compile_force_framework in slither.config.json), and lib/ is
+      # gitignored, so without these two steps it finds no OpenZeppelin sources, falls back to guessing
+      # Hardhat, and dies on "out/build-info is not a directory".
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: ${{ env.FOUNDRY_VERSION }}
+
+      - name: Install dependencies
+        run: make install
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Slither
+        # Pinned. An unpinned install is what broke this job before: a Slither release renamed
+        # `--fail-on medium` to `--fail-medium`, and CI went red on a day nobody had touched the code.
+        run: pip install slither-analyzer==0.11.6
+
+      - name: Run Slither
+        run: slither . --config-file slither.config.json --fail-medium
 
   e2e:
     name: Local integration (Anvil + monitor)
@@ -59,6 +104,8 @@ jobs:
 
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: ${{ env.FOUNDRY_VERSION }}
 
       - uses: actions/setup-node@v4
         with:

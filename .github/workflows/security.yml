@@ -1,0 +1,72 @@
+name: Blockchain Security & Static Analysis
+
+permissions:
+  contents: read
+
+on:
+  push:
+    branches: [main, master, develop]
+  pull_request:
+  workflow_dispatch:
+
+env:
+  FOUNDRY_PROFILE: ci
+  FOUNDRY_VERSION: v1.5.1
+
+jobs:
+  # Slither runs once, in the `slither` job of test.yml, on a pinned slither-analyzer. It used to be
+  # duplicated here on an unpinned `pip install`, which is what broke this workflow: a later Slither
+  # release renamed `--fail-on medium` to `--fail-medium`.
+
+  # EVM hardfork compatibility (Cancun vs Shanghai) and storage-layout stability
+  evm-compatibility:
+    name: EVM Hardfork Bytecode Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: ${{ env.FOUNDRY_VERSION }}
+
+      - name: Install Dependencies
+        run: make install
+
+      - name: Compile with Cancun (Default)
+        run: forge build --evm-version cancun --sizes
+
+      - name: Compile with Shanghai (L2 Rollup Fallback)
+        run: forge build --evm-version shanghai --sizes
+
+      - name: Verify Contract Storage Layout Stability
+        # The vault is not upgradeable, so a layout change is not a migration problem -- it is a
+        # redeploy. This fails the build when a slot moves, so that is a decision someone makes on
+        # purpose rather than something noticed after mainnet.
+        run: |
+          bash script/storage-layout.sh > /tmp/storage_layout.json
+          echo "Current storage layout:"
+          cat /tmp/storage_layout.json
+          diff abi/SettlementVault.storage.json /tmp/storage_layout.json
+
+  # 3. High-Depth Invariant & Fuzzing Suite
+  fuzzing:
+    name: Invariant & Deep Fuzz Testing
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: ${{ env.FOUNDRY_VERSION }}
+
+      - name: Install Dependencies
+        run: make install
+
+      - name: Run Invariant & Fuzzing Suite
+        run: forge test --match-path "test/invariant/*" -vvv
+        env:
+          FOUNDRY_FUZZ_RUNS: 5000
+          FOUNDRY_INVARIANT_RUNS: 512
+          FOUNDRY_INVARIANT_DEPTH: 100

@@ -1,0 +1,620 @@
+{
+  "storage": [
+    {
+      "label": "_roles",
+      "offset": 0,
+      "slot": "0",
+      "type": "t_mapping(t_bytes32,t_struct(RoleData)22_storage)"
+    },
+    {
+      "label": "_pendingDefaultAdmin",
+      "offset": 0,
+      "slot": "1",
+      "type": "t_address"
+    },
+    {
+      "label": "_pendingDefaultAdminSchedule",
+      "offset": 20,
+      "slot": "1",
+      "type": "t_uint48"
+    },
+    {
+      "label": "_currentDelay",
+      "offset": 26,
+      "slot": "1",
+      "type": "t_uint48"
+    },
+    {
+      "label": "_currentDefaultAdmin",
+      "offset": 0,
+      "slot": "2",
+      "type": "t_address"
+    },
+    {
+      "label": "_pendingDelay",
+      "offset": 20,
+      "slot": "2",
+      "type": "t_uint48"
+    },
+    {
+      "label": "_pendingDelaySchedule",
+      "offset": 26,
+      "slot": "2",
+      "type": "t_uint48"
+    },
+    {
+      "label": "_paused",
+      "offset": 0,
+      "slot": "3",
+      "type": "t_bool"
+    },
+    {
+      "label": "_status",
+      "offset": 0,
+      "slot": "4",
+      "type": "t_uint256"
+    },
+    {
+      "label": "maxPerSettlement",
+      "offset": 0,
+      "slot": "5",
+      "type": "t_uint256"
+    },
+    {
+      "label": "dailyLimit",
+      "offset": 0,
+      "slot": "6",
+      "type": "t_uint256"
+    },
+    {
+      "label": "settledOnDay",
+      "offset": 0,
+      "slot": "7",
+      "type": "t_mapping(t_uint256,t_uint256)"
+    },
+    {
+      "label": "reservedForRefunds",
+      "offset": 0,
+      "slot": "8",
+      "type": "t_uint256"
+    },
+    {
+      "label": "reservedForFunding",
+      "offset": 0,
+      "slot": "9",
+      "type": "t_uint256"
+    },
+    {
+      "label": "totalSettled",
+      "offset": 0,
+      "slot": "10",
+      "type": "t_uint256"
+    },
+    {
+      "label": "totalReturned",
+      "offset": 0,
+      "slot": "11",
+      "type": "t_uint256"
+    },
+    {
+      "label": "totalRefunded",
+      "offset": 0,
+      "slot": "12",
+      "type": "t_uint256"
+    },
+    {
+      "label": "totalFunded",
+      "offset": 0,
+      "slot": "13",
+      "type": "t_uint256"
+    },
+    {
+      "label": "totalFundingReturned",
+      "offset": 0,
+      "slot": "14",
+      "type": "t_uint256"
+    },
+    {
+      "label": "allowStaleReferenceRate",
+      "offset": 0,
+      "slot": "15",
+      "type": "t_bool"
+    },
+    {
+      "label": "requireFunding",
+      "offset": 1,
+      "slot": "15",
+      "type": "t_bool"
+    },
+    {
+      "label": "_settlements",
+      "offset": 0,
+      "slot": "16",
+      "type": "t_mapping(t_bytes32,t_struct(Settlement)7623_storage)"
+    },
+    {
+      "label": "_funding",
+      "offset": 0,
+      "slot": "17",
+      "type": "t_mapping(t_bytes32,t_struct(Funding)7671_storage)"
+    },
+    {
+      "label": "_partners",
+      "offset": 0,
+      "slot": "18",
+      "type": "t_mapping(t_address,t_struct(PartnerInfo)7681_storage)"
+    },
+    {
+      "label": "_quotes",
+      "offset": 0,
+      "slot": "19",
+      "type": "t_mapping(t_bytes32,t_struct(LockedQuote)7661_storage)"
+    },
+    {
+      "label": "_quoteUsed",
+      "offset": 0,
+      "slot": "20",
+      "type": "t_mapping(t_bytes32,t_bool)"
+    },
+    {
+      "label": "_referenceRates",
+      "offset": 0,
+      "slot": "21",
+      "type": "t_mapping(t_bytes3,t_struct(ReferenceRate)7693_storage)"
+    },
+    {
+      "label": "_currencies",
+      "offset": 0,
+      "slot": "22",
+      "type": "t_mapping(t_bytes3,t_struct(CurrencyInfo)7687_storage)"
+    },
+    {
+      "label": "_quoteConfig",
+      "offset": 0,
+      "slot": "23",
+      "type": "t_struct(QuoteConfig)7705_storage"
+    }
+  ],
+  "types": {
+    "t_address": {
+      "encoding": "inplace",
+      "label": "address",
+      "numberOfBytes": "20"
+    },
+    "t_bool": {
+      "encoding": "inplace",
+      "label": "bool",
+      "numberOfBytes": "1"
+    },
+    "t_bytes3": {
+      "encoding": "inplace",
+      "label": "bytes3",
+      "numberOfBytes": "3"
+    },
+    "t_bytes32": {
+      "encoding": "inplace",
+      "label": "bytes32",
+      "numberOfBytes": "32"
+    },
+    "t_enum(Status)7613": {
+      "encoding": "inplace",
+      "label": "enum ISettlementVault.Status",
+      "numberOfBytes": "1"
+    },
+    "t_mapping(t_address,t_bool)": {
+      "encoding": "mapping",
+      "key": "t_address",
+      "label": "mapping(address => bool)",
+      "numberOfBytes": "32",
+      "value": "t_bool"
+    },
+    "t_mapping(t_address,t_struct(PartnerInfo)7681_storage)": {
+      "encoding": "mapping",
+      "key": "t_address",
+      "label": "mapping(address => struct ISettlementVault.PartnerInfo)",
+      "numberOfBytes": "32",
+      "value": "t_struct(PartnerInfo)7681_storage"
+    },
+    "t_mapping(t_bytes3,t_struct(CurrencyInfo)7687_storage)": {
+      "encoding": "mapping",
+      "key": "t_bytes3",
+      "label": "mapping(bytes3 => struct ISettlementVault.CurrencyInfo)",
+      "numberOfBytes": "32",
+      "value": "t_struct(CurrencyInfo)7687_storage"
+    },
+    "t_mapping(t_bytes3,t_struct(ReferenceRate)7693_storage)": {
+      "encoding": "mapping",
+      "key": "t_bytes3",
+      "label": "mapping(bytes3 => struct ISettlementVault.ReferenceRate)",
+      "numberOfBytes": "32",
+      "value": "t_struct(ReferenceRate)7693_storage"
+    },
+    "t_mapping(t_bytes32,t_bool)": {
+      "encoding": "mapping",
+      "key": "t_bytes32",
+      "label": "mapping(bytes32 => bool)",
+      "numberOfBytes": "32",
+      "value": "t_bool"
+    },
+    "t_mapping(t_bytes32,t_struct(Funding)7671_storage)": {
+      "encoding": "mapping",
+      "key": "t_bytes32",
+      "label": "mapping(bytes32 => struct ISettlementVault.Funding)",
+      "numberOfBytes": "32",
+      "value": "t_struct(Funding)7671_storage"
+    },
+    "t_mapping(t_bytes32,t_struct(LockedQuote)7661_storage)": {
+      "encoding": "mapping",
+      "key": "t_bytes32",
+      "label": "mapping(bytes32 => struct ISettlementVault.LockedQuote)",
+      "numberOfBytes": "32",
+      "value": "t_struct(LockedQuote)7661_storage"
+    },
+    "t_mapping(t_bytes32,t_struct(RoleData)22_storage)": {
+      "encoding": "mapping",
+      "key": "t_bytes32",
+      "label": "mapping(bytes32 => struct AccessControl.RoleData)",
+      "numberOfBytes": "32",
+      "value": "t_struct(RoleData)22_storage"
+    },
+    "t_mapping(t_bytes32,t_struct(Settlement)7623_storage)": {
+      "encoding": "mapping",
+      "key": "t_bytes32",
+      "label": "mapping(bytes32 => struct ISettlementVault.Settlement)",
+      "numberOfBytes": "32",
+      "value": "t_struct(Settlement)7623_storage"
+    },
+    "t_mapping(t_uint256,t_uint256)": {
+      "encoding": "mapping",
+      "key": "t_uint256",
+      "label": "mapping(uint256 => uint256)",
+      "numberOfBytes": "32",
+      "value": "t_uint256"
+    },
+    "t_struct(CurrencyInfo)7687_storage": {
+      "encoding": "inplace",
+      "label": "struct ISettlementVault.CurrencyInfo",
+      "members": [
+        {
+          "astId": 7684,
+          "contract": "src/SettlementVault.sol:SettlementVault",
+          "label": "decimals",
+          "offset": 0,
+          "slot": "0",
+          "type": "t_uint8"
+        },
+        {
+          "astId": 7686,
+          "contract": "src/SettlementVault.sol:SettlementVault",
+          "label": "enabled",
+          "offset": 1,
+          "slot": "0",
+          "type": "t_bool"
+        }
+      ],
+      "numberOfBytes": "32"
+    },
+    "t_struct(Funding)7671_storage": {
+      "encoding": "inplace",
+      "label": "struct ISettlementVault.Funding",
+      "members": [
+        {
+          "astId": 7664,
+          "contract": "src/SettlementVault.sol:SettlementVault",
+          "label": "partner",
+          "offset": 0,
+          "slot": "0",
+          "type": "t_address"
+        },
+        {
+          "astId": 7666,
+          "contract": "src/SettlementVault.sol:SettlementVault",
+          "label": "fundedAt",
+          "offset": 20,
+          "slot": "0",
+          "type": "t_uint64"
+        },
+        {
+          "astId": 7668,
+          "contract": "src/SettlementVault.sol:SettlementVault",
+          "label": "returnedAt",
+          "offset": 0,
+          "slot": "1",
+          "type": "t_uint64"
+        },
+        {
+          "astId": 7670,
+          "contract": "src/SettlementVault.sol:SettlementVault",
+          "label": "amount",
+          "offset": 0,
+          "slot": "2",
+          "type": "t_uint256"
+        }
+      ],
+      "numberOfBytes": "96"
+    },
+    "t_struct(LockedQuote)7661_storage": {
+      "encoding": "inplace",
+      "label": "struct ISettlementVault.LockedQuote",
+      "members": [
+        {
+          "astId": 7642,
+          "contract": "src/SettlementVault.sol:SettlementVault",
+          "label": "quoteId",
+          "offset": 0,
+          "slot": "0",
+          "type": "t_bytes32"
+        },
+        {
+          "astId": 7644,
+          "contract": "src/SettlementVault.sol:SettlementVault",
+          "label": "receiveCurrency",
+          "offset": 0,
+          "slot": "1",
+          "type": "t_bytes3"
+        },
+        {
+          "astId": 7646,
+          "contract": "src/SettlementVault.sol:SettlementVault",
+          "label": "receiveDecimals",
+          "offset": 3,
+          "slot": "1",
+          "type": "t_uint8"
+        },
+        {
+          "astId": 7648,
+          "contract": "src/SettlementVault.sol:SettlementVault",
+          "label": "cancelled",
+          "offset": 4,
+          "slot": "1",
+          "type": "t_bool"
+        },
+        {
+          "astId": 7650,
+          "contract": "src/SettlementVault.sol:SettlementVault",
+          "label": "expiresAt",
+          "offset": 5,
+          "slot": "1",
+          "type": "t_uint64"
+        },
+        {
+          "astId": 7652,
+          "contract": "src/SettlementVault.sol:SettlementVault",
+          "label": "lockedAt",
+          "offset": 13,
+          "slot": "1",
+          "type": "t_uint64"
+        },
+        {
+          "astId": 7654,
+          "contract": "src/SettlementVault.sol:SettlementVault",
+          "label": "rate",
+          "offset": 0,
+          "slot": "2",
+          "type": "t_uint256"
+        },
+        {
+          "astId": 7656,
+          "contract": "src/SettlementVault.sol:SettlementVault",
+          "label": "usdcAmount",
+          "offset": 0,
+          "slot": "3",
+          "type": "t_uint256"
+        },
+        {
+          "astId": 7658,
+          "contract": "src/SettlementVault.sol:SettlementVault",
+          "label": "feeUsdc",
+          "offset": 0,
+          "slot": "4",
+          "type": "t_uint256"
+        },
+        {
+          "astId": 7660,
+          "contract": "src/SettlementVault.sol:SettlementVault",
+          "label": "receiveAmountMinor",
+          "offset": 0,
+          "slot": "5",
+          "type": "t_uint256"
+        }
+      ],
+      "numberOfBytes": "192"
+    },
+    "t_struct(PartnerInfo)7681_storage": {
+      "encoding": "inplace",
+      "label": "struct ISettlementVault.PartnerInfo",
+      "members": [
+        {
+          "astId": 7674,
+          "contract": "src/SettlementVault.sol:SettlementVault",
+          "label": "onRamp",
+          "offset": 0,
+          "slot": "0",
+          "type": "t_bool"
+        },
+        {
+          "astId": 7676,
+          "contract": "src/SettlementVault.sol:SettlementVault",
+          "label": "offRamp",
+          "offset": 1,
+          "slot": "0",
+          "type": "t_bool"
+        },
+        {
+          "astId": 7678,
+          "contract": "src/SettlementVault.sol:SettlementVault",
+          "label": "enabled",
+          "offset": 2,
+          "slot": "0",
+          "type": "t_bool"
+        },
+        {
+          "astId": 7680,
+          "contract": "src/SettlementVault.sol:SettlementVault",
+          "label": "payoutCurrency",
+          "offset": 3,
+          "slot": "0",
+          "type": "t_bytes3"
+        }
+      ],
+      "numberOfBytes": "32"
+    },
+    "t_struct(QuoteConfig)7705_storage": {
+      "encoding": "inplace",
+      "label": "struct ISettlementVault.QuoteConfig",
+      "members": [
+        {
+          "astId": 7696,
+          "contract": "src/SettlementVault.sol:SettlementVault",
+          "label": "maxQuoteTtl",
+          "offset": 0,
+          "slot": "0",
+          "type": "t_uint64"
+        },
+        {
+          "astId": 7698,
+          "contract": "src/SettlementVault.sol:SettlementVault",
+          "label": "referenceMaxAge",
+          "offset": 8,
+          "slot": "0",
+          "type": "t_uint64"
+        },
+        {
+          "astId": 7700,
+          "contract": "src/SettlementVault.sol:SettlementVault",
+          "label": "maxSettleDelay",
+          "offset": 16,
+          "slot": "0",
+          "type": "t_uint64"
+        },
+        {
+          "astId": 7702,
+          "contract": "src/SettlementVault.sol:SettlementVault",
+          "label": "divergenceAlertBps",
+          "offset": 24,
+          "slot": "0",
+          "type": "t_uint16"
+        },
+        {
+          "astId": 7704,
+          "contract": "src/SettlementVault.sol:SettlementVault",
+          "label": "divergenceMaxBps",
+          "offset": 26,
+          "slot": "0",
+          "type": "t_uint16"
+        }
+      ],
+      "numberOfBytes": "32"
+    },
+    "t_struct(ReferenceRate)7693_storage": {
+      "encoding": "inplace",
+      "label": "struct ISettlementVault.ReferenceRate",
+      "members": [
+        {
+          "astId": 7690,
+          "contract": "src/SettlementVault.sol:SettlementVault",
+          "label": "rate",
+          "offset": 0,
+          "slot": "0",
+          "type": "t_uint256"
+        },
+        {
+          "astId": 7692,
+          "contract": "src/SettlementVault.sol:SettlementVault",
+          "label": "updatedAt",
+          "offset": 0,
+          "slot": "1",
+          "type": "t_uint64"
+        }
+      ],
+      "numberOfBytes": "64"
+    },
+    "t_struct(RoleData)22_storage": {
+      "encoding": "inplace",
+      "label": "struct AccessControl.RoleData",
+      "members": [
+        {
+          "astId": 19,
+          "contract": "src/SettlementVault.sol:SettlementVault",
+          "label": "hasRole",
+          "offset": 0,
+          "slot": "0",
+          "type": "t_mapping(t_address,t_bool)"
+        },
+        {
+          "astId": 21,
+          "contract": "src/SettlementVault.sol:SettlementVault",
+          "label": "adminRole",
+          "offset": 0,
+          "slot": "1",
+          "type": "t_bytes32"
+        }
+      ],
+      "numberOfBytes": "64"
+    },
+    "t_struct(Settlement)7623_storage": {
+      "encoding": "inplace",
+      "label": "struct ISettlementVault.Settlement",
+      "members": [
+        {
+          "astId": 7615,
+          "contract": "src/SettlementVault.sol:SettlementVault",
+          "label": "partner",
+          "offset": 0,
+          "slot": "0",
+          "type": "t_address"
+        },
+        {
+          "astId": 7617,
+          "contract": "src/SettlementVault.sol:SettlementVault",
+          "label": "settledAt",
+          "offset": 20,
+          "slot": "0",
+          "type": "t_uint64"
+        },
+        {
+          "astId": 7620,
+          "contract": "src/SettlementVault.sol:SettlementVault",
+          "label": "status",
+          "offset": 28,
+          "slot": "0",
+          "type": "t_enum(Status)7613"
+        },
+        {
+          "astId": 7622,
+          "contract": "src/SettlementVault.sol:SettlementVault",
+          "label": "amount",
+          "offset": 0,
+          "slot": "1",
+          "type": "t_uint256"
+        }
+      ],
+      "numberOfBytes": "64"
+    },
+    "t_uint16": {
+      "encoding": "inplace",
+      "label": "uint16",
+      "numberOfBytes": "2"
+    },
+    "t_uint256": {
+      "encoding": "inplace",
+      "label": "uint256",
+      "numberOfBytes": "32"
+    },
+    "t_uint48": {
+      "encoding": "inplace",
+      "label": "uint48",
+      "numberOfBytes": "6"
+    },
+    "t_uint64": {
+      "encoding": "inplace",
+      "label": "uint64",
+      "numberOfBytes": "8"
+    },
+    "t_uint8": {
+      "encoding": "inplace",
+      "label": "uint8",
+      "numberOfBytes": "1"
+    }
+  }
+}
