@@ -151,7 +151,15 @@ interface ISettlementVault {
     error InsufficientFreeBalance(uint256 requested, uint256 available);
 
     error ZeroQuoteId();
-    error InvalidQuote();
+    /// @dev The quoted rate is zero or above `FxMath.MAX_RATE`.
+    error QuoteRateOutOfRange(bytes32 ref, uint256 rate, uint256 maxRate);
+    /// @dev The quote moves no USDC.
+    error QuoteAmountZero(bytes32 ref);
+    /// @dev The quoted fee alone is above the per-settlement limit.
+    error QuoteFeeExceedsLimit(bytes32 ref, uint256 feeUsdc, uint256 maxPerSettlement);
+    /// @dev `usdcAmount x rate` rounds down to nothing in the receive currency's smallest unit. Either the
+    ///      amount is dust or the currency has too few decimals for it.
+    error ReceiveAmountRoundsToZero(bytes32 ref, uint256 usdcAmount, uint256 rate, uint8 receiveDecimals);
     error QuoteExpired(bytes32 ref, uint64 expiresAt);
     error QuoteTtlTooLong(uint64 expiresAt, uint64 maxAllowed);
     error QuoteAlreadyLocked(bytes32 ref);
@@ -162,7 +170,8 @@ interface ISettlementVault {
     error SettleAmountMismatch(bytes32 ref, uint256 provided, uint256 locked);
     error RateDivergenceTooHigh(bytes32 ref, uint256 deviationBps, uint256 maxBps);
     error InvalidQuoteConfig();
-    error ZeroRate();
+    /// @dev A published reference rate is zero or above `FxMath.MAX_RATE`.
+    error ReferenceRateOutOfRange(bytes3 currency, uint256 rate, uint256 maxRate);
     error CurrencyNotSupported(bytes3 currency);
     error QuoteLockTooOld(bytes32 ref, uint64 lockedAt, uint64 maxSettleDelay);
     error CannotRescueAssetToken();
