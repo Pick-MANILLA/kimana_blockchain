@@ -1,20 +1,28 @@
 # ADR 0001 — Settlement network
 
-- **Status:** Accepted — **Base** — *pending the sign-offs in §7*
-- **Date:** 2026-09-19
+- **Status:** **Accepted** — Base
+- **Date:** 2026-09-19, accepted 2026-09-23
 - **Decides:** issue #1
 - **Deciders:** product lead, engineering lead, blockchain
 
-## 1. Context
+## 1. Decision
+
+> **Settle on Base.** Base Sepolia (84532) for the testnet deployment (#12), Base mainnet (8453) after the
+> external audit (#14) and the regulatory and partner approvals the PRD requires.
+
+One chain. Not "Base first, then others" as a roadmap item — a second chain is a business decision with a
+cost, taken only when a partner we want forces it (§6).
+
+## 2. Context
 
 `SettlementVault` is chain-agnostic: it works on any EVM chain with **native, 6-decimal USDC**. Base,
 Arbitrum, Polygon and Ethereum are configured in `foundry.toml`, each with a testnet. That list is a *menu of
 what the contract supports*, not a deployment plan.
 
-We deploy to **one** chain. Each additional chain needs its own USDC float, Safe, partner allowlist, operator
-key in custody, monitor instance and deployment review. Nothing in this repo moves value between chains, and
-adding a bridge is explicitly out of scope: bridges are the largest single category of loss in crypto, and the
-problem they solve is one we can avoid by settling where the money already is.
+Each additional chain needs its own USDC float, Safe, partner allowlist, operator key in custody, monitor
+instance and deployment review. Nothing in this repo moves value between chains, and adding a bridge is
+explicitly out of scope: bridges are the largest single category of loss in crypto, and the problem they
+solve is one we can avoid by settling where the money already is.
 
 Already decided elsewhere and not reopened here:
 
@@ -22,39 +30,7 @@ Already decided elsewhere and not reopened here:
 - **Native USDC only**, recorded in [`../networks.md`](../networks.md). BNB Chain is excluded because its
   bridged USDC has 18 decimals and the constructor refuses it.
 
-## 2. The decision is made by the partners, not by us
-
-The vault must sit where our counterparties can actually transact. In priority order:
-
-1. **Which networks does the NGN off-ramp partner accept USDC on, for payouts?** This dominates everything
-   else. A chain the partner cannot receive on is unusable however good its fees are.
-2. **Which networks can the on-ramp partner deliver USDC on?** Usually more flexible.
-3. **Which networks does the custody provider support** for the operator and oracle keys (#11)?
-4. Only then: fees, finality, liquidity.
-
-If (1) and (2) have no chain in common, the correct response is to **change a partner**, not to add a bridge.
-
-## 3. Open question blocking this ADR
-
-Sent to the off-ramp partner on `____________`:
-
-> Which blockchain networks can you receive USDC on for NGN payouts, and is it **native** USDC on each (not a
-> bridged version)? Do you require pre-funding of a float with you, or do you pay out per transaction after we
-> settle? What are your minimum and maximum per-transaction amounts, and how many confirmations do you wait for?
-
-Answer: `____________`
-
-> **Still outstanding.** The Base decision was taken on cost, tooling and ecosystem grounds. It must still be
-> checked against the partner's answer: if they cannot receive USDC on Base for NGN payouts, this ADR has to be
-> reopened before the **mainnet** deploy. Base Sepolia for integration testing is unaffected either way.
-
-That answer also settles two other things, so record it here and link back from those issues:
-
-- **#8** — whether off-ramp partners need a per-currency restriction in practice (the contract supports it).
-- **#2 / `requireFunding`** — pre-funded float means the on-ramp cannot fund per transfer, so `requireFunding`
-  must stay **off**. Per-transaction delivery means it should be turned **on**.
-
-## 4. Options
+## 3. Why Base
 
 | | Base | Arbitrum | Polygon | Ethereum |
 |---|---|---|---|---|
@@ -65,45 +41,55 @@ That answer also settles two other things, so record it here and link back from 
 | African off-ramp support | good and growing | thinner | good, common with African PSPs | universal but rarely used for payouts |
 | Sequencer outage risk | yes | yes | n/a | n/a |
 
-**Ethereum mainnet is ruled out for the pilot** on economics alone: two transactions at mainnet gas against a
-fee charged on a few thousand dollars does not survive contact with the P&L. It stays a candidate only if a
-partner insists.
+Base wins on the two things that decide it: **lowest fees of the four**, which matters because every
+transfer costs two transactions against a fee charged on a few thousand dollars, and **native USDC issued by
+Circle** rather than a bridged representation. It is also already the repo's configured default, so
+`preflight`, `verify`, the monitor and the runbooks need no changes.
 
-## 5. Proposed decision
+**Ethereum mainnet is ruled out** on economics alone: two transactions at mainnet gas does not survive
+contact with the P&L. **Polygon** was the main alternative and would have won had the off-ramp partner
+supported it and not Base.
 
-> **Deploy to Base mainnet, after Base Sepolia (#12) and the external audit (#14).**
+Base runs the Cancun opcodes, so the default `evm_version = "cancun"` build is correct here.
+`make preflight` proves this against the live RPC before any gas is spent (#25).
 
-**Decided: Base.** Lowest fees of the four, native USDC, growing support among
-African payment providers, and it is already the repo's configured default so `preflight`, `verify`, the
-monitor and the runbooks need no changes.
+## 4. What this decision rests on, and what would reopen it
 
-**Switch to Polygon** if the off-ramp partner supports Polygon but not Base — that single fact outweighs
-everything in the table above.
+The chain must sit where our counterparties can actually transact. Base was accepted on the **backend team's
+confirmation that it supports USDC on Base**, plus the economics above.
 
-Consequences of choosing one chain:
+**Still outstanding, and it is not blocking this decision:** the NGN off-ramp partner has not confirmed in
+writing which networks they accept USDC on for payouts. If that answer comes back excluding Base, it
+overrides everything in §3 and this ADR is reopened — the correct response is to **change chain or change
+partner, never to add a bridge**.
+
+The same message to the partner still decides two things that are *not* settled here:
+
+> Which blockchain networks can you receive USDC on for NGN payouts, and is it **native** USDC on each (not a
+> bridged version)? Do you require pre-funding of a float with you, or do you pay out per transaction after we
+> settle? What are your minimum and maximum per-transaction amounts, and how many confirmations do you wait for?
+
+- **#2 / `requireFunding`** — a pre-funded float means the on-ramp cannot fund per transfer, so
+  `requireFunding` stays **off**. Per-transaction delivery means it should be turned **on**. It defaults to
+  off and is an admin call, so this can be answered after deployment.
+- **#8** — whether off-ramp partners need a per-currency payout restriction in practice. The contract
+  supports it either way; it is a `setPartner` argument.
+
+## 5. Consequences
 
 - one float, one Safe, one operator key, one monitor — the smallest operable surface;
-- a transfer that starts on this chain settles on this chain, always;
-- a second chain later is a **business decision with a cost**, not a config flag. The engineering is about a
-  day (`make preflight NETWORK=x` → deploy → `make verify`); the float, custody, monitoring and audit are not.
-
-## 5a. On "multiple chains later"
-
-The team's intent is Base now, more chains later. Recording what that does and does not mean, because the
-distinction gets lost:
-
-- It is a **future decision, not a plan**. Nothing is committed and nothing in the code assumes it.
-- Adding a chain is **not a configuration change**. It is a separate deployment with its own USDC float, Safe,
-  operator key in custody, partner allowlist, monitor instance and deployment review. The engineering is about
-  a day; the operations and capital are not.
-- **Value never moves between chains.** A transfer that starts on a chain settles on that chain. There is no
-  bridge and adding one is explicitly out of scope (§1).
-- Deferring costs nothing, because the contract is already portable. Do it when a partner requires it.
+- a transfer that starts on Base settles on Base, always;
+- confirmations: 2 on testnet, **5 or more** on mainnet (`CONFIRMATIONS` in the monitor);
+- Base is an L2 with a single sequencer. A sequencer outage stops settlement until it resumes. This is
+  accepted: the alternative chains carry the same or worse risk, and the incident runbook covers it;
+- a second chain later costs about a day of engineering (`make preflight NETWORK=x` → deploy → `make
+  verify`) and considerably more in float, custody, monitoring and audit.
 
 ## 6. Revisit when
 
+- the off-ramp partner's written answer excludes Base (§4);
 - a partner we want requires a chain we are not on;
-- fees or outages on the chosen chain start showing up in customer complaints;
+- Base fees or sequencer outages start showing up in customer complaints;
 - volume justifies redundancy across two chains.
 
 ## 7. Sign-off
@@ -113,6 +99,3 @@ distinction gets lost:
 | Product lead | | |
 | Engineering lead | | |
 | Blockchain | | |
-
-Once signed: mark this ADR **Accepted**, set the chosen mainnet in [`../networks.md`](../networks.md), and
-close #1 with a link to this file.
