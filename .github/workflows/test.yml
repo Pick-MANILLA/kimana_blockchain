@@ -59,6 +59,13 @@ jobs:
           forge inspect SettlementVault abi --json > /tmp/abi.json
           diff <(jq -S . abi/SettlementVault.json) <(jq -S . /tmp/abi.json)
 
+      - name: Error selector manifest is up to date
+        # Clients decode reverts through this map. A new error that never reaches it shows up in
+        # production as four unexplained bytes, so the build fails rather than letting it drift.
+        run: |
+          bash script/error-selectors.sh > /tmp/errors.json
+          diff <(jq -S . abi/SettlementVault.errors.json) <(jq -S . /tmp/errors.json)
+
   slither:
     name: Slither static analysis
     runs-on: ubuntu-latest
