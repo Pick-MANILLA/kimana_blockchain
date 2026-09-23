@@ -41,7 +41,7 @@ jobs:
         # redeploy. This fails the build when a slot moves, so that is a decision someone makes on
         # purpose rather than something noticed after mainnet.
         run: |
-          ./script/storage-layout.sh > /tmp/storage_layout.json
+          bash script/storage-layout.sh > /tmp/storage_layout.json
           echo "Current storage layout:"
           cat /tmp/storage_layout.json
           diff abi/SettlementVault.storage.json /tmp/storage_layout.json
