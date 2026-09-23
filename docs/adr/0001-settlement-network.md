@@ -1,6 +1,6 @@
 # ADR 0001 — Settlement network
 
-- **Status:** Proposed — *awaiting the off-ramp partner's answer (§3) and sign-off (§7)*
+- **Status:** Accepted — **Base** — *pending the sign-offs in §7*
 - **Date:** 2026-09-19
 - **Decides:** issue #1
 - **Deciders:** product lead, engineering lead, blockchain
@@ -44,6 +44,10 @@ Sent to the off-ramp partner on `____________`:
 
 Answer: `____________`
 
+> **Still outstanding.** The Base decision was taken on cost, tooling and ecosystem grounds. It must still be
+> checked against the partner's answer: if they cannot receive USDC on Base for NGN payouts, this ADR has to be
+> reopened before the **mainnet** deploy. Base Sepolia for integration testing is unaffected either way.
+
 That answer also settles two other things, so record it here and link back from those issues:
 
 - **#8** — whether off-ramp partners need a per-currency restriction in practice (the contract supports it).
@@ -67,9 +71,9 @@ partner insists.
 
 ## 5. Proposed decision
 
-> **Deploy to `__________` mainnet, after Base Sepolia (#12) and the external audit (#14).**
+> **Deploy to Base mainnet, after Base Sepolia (#12) and the external audit (#14).**
 
-**Recommendation pending the §3 answer: Base.** Lowest fees of the four, native USDC, growing support among
+**Decided: Base.** Lowest fees of the four, native USDC, growing support among
 African payment providers, and it is already the repo's configured default so `preflight`, `verify`, the
 monitor and the runbooks need no changes.
 
@@ -82,6 +86,19 @@ Consequences of choosing one chain:
 - a transfer that starts on this chain settles on this chain, always;
 - a second chain later is a **business decision with a cost**, not a config flag. The engineering is about a
   day (`make preflight NETWORK=x` → deploy → `make verify`); the float, custody, monitoring and audit are not.
+
+## 5a. On "multiple chains later"
+
+The team's intent is Base now, more chains later. Recording what that does and does not mean, because the
+distinction gets lost:
+
+- It is a **future decision, not a plan**. Nothing is committed and nothing in the code assumes it.
+- Adding a chain is **not a configuration change**. It is a separate deployment with its own USDC float, Safe,
+  operator key in custody, partner allowlist, monitor instance and deployment review. The engineering is about
+  a day; the operations and capital are not.
+- **Value never moves between chains.** A transfer that starts on a chain settles on that chain. There is no
+  bridge and adding one is explicitly out of scope (§1).
+- Deferring costs nothing, because the contract is already portable. Do it when a partner requires it.
 
 ## 6. Revisit when
 

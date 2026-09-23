@@ -13,7 +13,9 @@ sign of trouble is a customer complaint.
 | reverted vault transaction | critical | A `lockQuote` or `settle` failed. Includes blocked quotes (`RateDivergenceTooHigh`), expired quotes and failed payouts. Reverted transactions emit **no events**, so this is the only way they surface. |
 | free float below `MIN_FLOAT_USDC` | critical | Settlements will start failing. Top up. |
 | `RateDivergence` | warning | The quoted rate is at least 1% from the oracle's reference. One of them is wrong. |
-| `ReferenceRateStale` | warning | No fresh reference rate, so divergence is not being checked at all. Usually means the rate oracle (#15) has stopped. |
+| `ReferenceRateStale` | warning | Only appears when admin has set `allowStaleReferenceRate` — meaning the rate check is **currently bypassed**. Otherwise a missing rate blocks the lock instead, surfacing as a critical `TransactionReverted` with `ReferenceRateUnavailable`. |
+| `FundingReturned` | info | A partner's deposit went back for a cancelled or abandoned transfer. |
+| `AllowStaleReferenceRateUpdated` | warning | The rate check was switched on or off. Should always match a recorded incident. |
 | `SettlementReturned` | warning | An off-chain payout failed and the partner sent the USDC back. |
 | `RoleGranted` / `RoleRevoked` / admin transfers | warning | Someone changed who controls the vault. If it was not you, treat it as an incident. |
 | `PartnerUpdated`, `LimitsUpdated`, `QuoteConfigUpdated`, `Swept`, `Unpaused` | warning | Admin actions. Each should match a Safe transaction someone can point to. |
@@ -102,5 +104,7 @@ Go to [`incident.md`](incident.md). In short:
 - **Paused** — find out who paused it and why before unpausing. Unpausing needs the Safe.
 - **reverted `RateDivergenceTooHigh`** — the quoting provider and the oracle disagree by more than 5%. Do not
   raise the threshold to make it go away; work out which source is wrong.
-- **`ReferenceRateStale`** — the rate oracle (#15) is down. Divergence is not being checked while this lasts.
+- **reverted `ReferenceRateUnavailable`** — the rate oracle (#15) is down and quotes are being blocked. Restart
+  the oracle; see `incident.md`. Do not reach for `allowStaleReferenceRate` first.
+- **`ReferenceRateStale`** — the rate check is currently bypassed by admin. Should be time-limited.
 - **low float** — top up before settlements start failing. `script/FloatReport.s.sol` (#13) gives the full picture.

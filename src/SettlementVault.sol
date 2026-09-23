@@ -50,11 +50,25 @@ contract SettlementVault is ISettlementVault, AccessControlDefaultAdminRules, Pa
     /// @notice Sum of amounts that were returned by partners but not yet refunded.
     uint256 public reservedForRefunds;
 
+    /// @notice Sum of partner deposits that have neither been settled nor returned.
+    /// @dev Like `reservedForRefunds`, this is other people's money sitting in the vault for a specific
+    ///      transfer. `sweep` must not be able to touch it, or a treasury action would leave the vault unable
+    ///      to honour a settlement it has already accepted funding for.
+    uint256 public reservedForFunding;
+
     uint256 public totalSettled;
     uint256 public totalReturned;
     uint256 public totalRefunded;
     /// @notice Gross USDC delivered by on-ramp partners through `fund` (settlement amounts plus fees).
     uint256 public totalFunded;
+
+    /// @notice Gross USDC returned to on-ramp partners for transfers that were cancelled or expired.
+    uint256 public totalFundingReturned;
+
+    /// @notice When true, a quote may lock even though no fresh reference rate is available.
+    /// @dev Default false: the divergence check is the only on-chain defence against a manipulated rate, and a
+    ///      check that switches itself off when the oracle is down can be bypassed by taking the oracle down.
+    bool public allowStaleReferenceRate;
 
     /// @notice When true, `settle` refuses a `ref` that was not funded through `fund`.
     /// @dev Off by default: an on-ramp partner that delivers into a shared float rather than per transfer cannot
@@ -194,6 +208,21 @@ contract SettlementVault is ISettlementVault, AccessControlDefaultAdminRules, Pa
         uint256 remaining = _remainingOn(today);
         if (amount > remaining) revert ExceedsDailyLimit(amount, remaining);
 
+        // The deposit for this ref (if any) is no longer encumbered: the transfer is being honoured. The fee
+        // portion stays in the vault as free balance and is withdrawn by `sweep`.
+        Funding storage f = _funding[ref];
+        uint256 ownFunding = (f.fundedAt != 0 && f.returnedAt == 0) ? f.amount : 0;
+
+        // A settlement may spend the house float and its own deposit, but never another transfer's deposit or
+        // money reserved for a refund. Without this, settling an unfunded ref could quietly consume capital a
+        // partner deposited for a different one, leaving the vault unable to honour it.
+        uint256 encumbered = reservedForRefunds + reservedForFunding - ownFunding;
+        uint256 balance = asset.balanceOf(address(this));
+        uint256 spendable = balance > encumbered ? balance - encumbered : 0;
+        if (amount > spendable) revert InsufficientFreeBalance(amount, spendable);
+
+        if (ownFunding != 0) reservedForFunding -= ownFunding;
+
         settledOnDay[today] += amount;
         totalSettled += amount;
         _settlements[ref] =
@@ -239,11 +268,37 @@ contract SettlementVault is ISettlementVault, AccessControlDefaultAdminRules, Pa
         uint256 expected = q.usdcAmount + q.feeUsdc;
         if (amount != expected) revert FundAmountMismatch(ref, amount, expected);
 
-        _funding[ref] = Funding({partner: msg.sender, fundedAt: uint64(block.timestamp), amount: amount});
+        _funding[ref] = Funding({partner: msg.sender, fundedAt: uint64(block.timestamp), returnedAt: 0, amount: amount});
         totalFunded += amount;
+        reservedForFunding += amount;
 
         emit SettlementFunded(ref, msg.sender, amount, q.feeUsdc);
         asset.safeTransferFrom(msg.sender, address(this), amount);
+    }
+
+    /// @inheritdoc ISettlementVault
+    /// @dev Intentionally allowed while paused: a pause must not trap capital that belongs to a partner for a
+    ///      transfer that can never complete. The destination and amount come from the recorded deposit, so a
+    ///      caller cannot steer the money anywhere.
+    function returnFunding(bytes32 ref) external nonReentrant {
+        Funding storage f = _funding[ref];
+        if (f.fundedAt == 0) revert NotFunded(ref);
+        if (f.returnedAt != 0) revert FundingAlreadyReturned(ref);
+        if (_settlements[ref].status != Status.None) revert RefAlreadyUsed(ref);
+
+        // Only once settlement is impossible: cancelled, or too old to settle.
+        LockedQuote storage q = _quotes[ref];
+        bool stillSettleable = !q.cancelled && block.timestamp <= uint256(q.lockedAt) + _quoteConfig.maxSettleDelay;
+        if (stillSettleable) revert FundingStillSettleable(ref);
+
+        uint256 amount = f.amount;
+        address partner = f.partner;
+        f.returnedAt = uint64(block.timestamp);
+        reservedForFunding -= amount;
+        totalFundingReturned += amount;
+
+        emit FundingReturned(ref, partner, amount);
+        asset.safeTransfer(partner, amount);
     }
 
     /// @inheritdoc ISettlementVault
@@ -321,16 +376,25 @@ contract SettlementVault is ISettlementVault, AccessControlDefaultAdminRules, Pa
     }
 
     /// @inheritdoc ISettlementVault
+    function setAllowStaleReferenceRate(bool allowed) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        allowStaleReferenceRate = allowed;
+        emit AllowStaleReferenceRateUpdated(allowed);
+    }
+
+    /// @inheritdoc ISettlementVault
     function setLimits(uint256 maxPerSettlement_, uint256 dailyLimit_) external onlyRole(DEFAULT_ADMIN_ROLE) {
         _setLimits(maxPerSettlement_, dailyLimit_);
     }
 
     /// @inheritdoc ISettlementVault
-    /// @dev Treasury rebalancing. Cannot touch funds reserved for pending refunds.
+    /// @dev Treasury rebalancing. Cannot touch funds reserved for pending refunds, nor partner deposits that
+    ///      have not yet been settled or returned.
     function sweep(address to, uint256 amount) external onlyRole(DEFAULT_ADMIN_ROLE) nonReentrant {
         if (to == address(0)) revert ZeroAddress();
         if (amount == 0) revert ZeroAmount();
-        uint256 free = asset.balanceOf(address(this)) - reservedForRefunds;
+        uint256 encumbered = reservedForRefunds + reservedForFunding;
+        uint256 balance = asset.balanceOf(address(this));
+        uint256 free = balance > encumbered ? balance - encumbered : 0;
         if (amount > free) revert InsufficientFreeBalance(amount, free);
         emit Swept(to, amount);
         asset.safeTransfer(to, amount);
@@ -424,6 +488,9 @@ contract SettlementVault is ISettlementVault, AccessControlDefaultAdminRules, Pa
     function _checkDivergence(bytes32 ref, bytes3 currency, uint256 rate) internal {
         ReferenceRate memory r = _referenceRates[currency];
         if (r.updatedAt == 0 || block.timestamp - r.updatedAt > _quoteConfig.referenceMaxAge) {
+            // Fail closed. An attacker who can submit a bad rate could otherwise simply wait for (or cause)
+            // the oracle to go stale and bypass the check entirely.
+            if (!allowStaleReferenceRate) revert ReferenceRateUnavailable(currency, r.updatedAt);
             emit ReferenceRateStale(ref, currency, r.updatedAt);
             return;
         }

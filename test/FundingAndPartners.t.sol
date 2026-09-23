@@ -210,6 +210,254 @@ contract FundingAndPartnersTest is BaseTest {
     }
 
     // ------------------------------------------------------------------
+    // Issue #22: a partner's deposit is not sweepable treasury float
+    // ------------------------------------------------------------------
+
+    function test_fund_reservesTheDeposit() public {
+        assertEq(vault.reservedForFunding(), 0);
+        _lock(ref, AMOUNT);
+        vm.prank(onRampPartner);
+        vault.fund(ref, GROSS);
+        assertEq(vault.reservedForFunding(), GROSS, "deposit is encumbered");
+    }
+
+    function test_sweep_cannotTakeFundedCapital() public {
+        _lock(ref, AMOUNT);
+        vm.prank(onRampPartner);
+        vault.fund(ref, GROSS);
+
+        uint256 balance = usdc.balanceOf(address(vault));
+        vm.prank(admin);
+        vm.expectRevert(
+            abi.encodeWithSelector(ISettlementVault.InsufficientFreeBalance.selector, balance, balance - GROSS)
+        );
+        vault.sweep(admin, balance);
+    }
+
+    function test_sweep_canStillTakeGenuinelyFreeFloat() public {
+        _lock(ref, AMOUNT);
+        vm.prank(onRampPartner);
+        vault.fund(ref, GROSS);
+
+        uint256 free = usdc.balanceOf(address(vault)) - GROSS;
+        vm.prank(admin);
+        vault.sweep(admin, free);
+        assertEq(usdc.balanceOf(admin), free);
+        // The deposit is still there, so the settlement it was made for can still be honoured.
+        assertEq(usdc.balanceOf(address(vault)), GROSS);
+
+        vm.prank(operator);
+        vault.settle(ref, ngnPartner, AMOUNT);
+        assertEq(usdc.balanceOf(ngnPartner), AMOUNT);
+    }
+
+    function test_settle_releasesTheFundingReserve() public {
+        _lock(ref, AMOUNT);
+        vm.prank(onRampPartner);
+        vault.fund(ref, GROSS);
+        vm.prank(operator);
+        vault.settle(ref, ngnPartner, AMOUNT);
+
+        assertEq(vault.reservedForFunding(), 0, "no longer encumbered");
+        // The fee is now genuinely free and can be swept.
+        vm.prank(admin);
+        vault.sweep(admin, FEE);
+        assertEq(usdc.balanceOf(admin), FEE);
+    }
+
+    function test_sweep_respectsBothReservesTogether() public {
+        // One ref funded and awaiting settlement, another returned and awaiting refund.
+        _lock(ref, AMOUNT);
+        vm.prank(onRampPartner);
+        vault.fund(ref, GROSS);
+
+        bytes32 other = _ref("both_reserves");
+        _lock(other, AMOUNT);
+        vm.prank(operator);
+        vault.settle(other, ngnPartner, AMOUNT);
+        vm.startPrank(ngnPartner);
+        usdc.approve(address(vault), AMOUNT);
+        vault.returnSettlement(other);
+        vm.stopPrank();
+
+        assertEq(vault.reservedForFunding(), GROSS);
+        assertEq(vault.reservedForRefunds(), AMOUNT);
+
+        uint256 balance = usdc.balanceOf(address(vault));
+        uint256 free = balance - GROSS - AMOUNT;
+        vm.prank(admin);
+        vm.expectRevert(abi.encodeWithSelector(ISettlementVault.InsufficientFreeBalance.selector, free + 1, free));
+        vault.sweep(admin, free + 1);
+
+        vm.prank(admin);
+        vault.sweep(admin, free);
+    }
+
+    /// @dev Found by the new invariant: fencing `sweep` alone was not enough. A settlement for one transfer
+    ///      could still spend the deposit made for another, leaving the vault unable to honour it.
+    function test_settle_cannotSpendAnotherTransfersDeposit() public {
+        // Take the house float out of the picture so only the deposit is left.
+        uint256 houseFloat = usdc.balanceOf(address(vault));
+        vm.prank(admin);
+        vault.sweep(admin, houseFloat);
+
+        bytes32 funded = _ref("funded_one");
+        _lock(funded, AMOUNT);
+        vm.prank(onRampPartner);
+        vault.fund(funded, GROSS);
+        assertEq(usdc.balanceOf(address(vault)), GROSS, "only the deposit remains");
+
+        // A different, unfunded transfer must not be able to spend it.
+        bytes32 other = _ref("unfunded_other");
+        _lock(other, AMOUNT);
+        vm.prank(operator);
+        vm.expectRevert(abi.encodeWithSelector(ISettlementVault.InsufficientFreeBalance.selector, AMOUNT, 0));
+        vault.settle(other, ngnPartner, AMOUNT);
+
+        // The transfer that was actually funded still settles.
+        vm.prank(operator);
+        vault.settle(funded, ngnPartner, AMOUNT);
+        assertEq(usdc.balanceOf(ngnPartner), AMOUNT);
+    }
+
+    function test_settle_canSpendItsOwnDeposit() public {
+        uint256 houseFloat = usdc.balanceOf(address(vault));
+        vm.prank(admin);
+        vault.sweep(admin, houseFloat);
+
+        _lock(ref, AMOUNT);
+        vm.prank(onRampPartner);
+        vault.fund(ref, GROSS);
+
+        vm.prank(operator);
+        vault.settle(ref, ngnPartner, AMOUNT);
+        assertEq(usdc.balanceOf(ngnPartner), AMOUNT);
+        assertEq(vault.reservedForFunding(), 0);
+        assertEq(usdc.balanceOf(address(vault)), FEE, "the fee is what is left");
+    }
+
+    // ------------------------------------------------------------------
+    // Issue #23: funded capital can always find its way home
+    // ------------------------------------------------------------------
+
+    function test_returnFunding_afterCancelledQuote() public {
+        _lock(ref, AMOUNT);
+        vm.prank(onRampPartner);
+        vault.fund(ref, GROSS);
+        uint256 before = usdc.balanceOf(onRampPartner);
+
+        vm.prank(operator);
+        vault.cancelQuote(ref);
+
+        vm.expectEmit(address(vault));
+        emit ISettlementVault.FundingReturned(ref, onRampPartner, GROSS);
+        vault.returnFunding(ref);
+
+        assertEq(usdc.balanceOf(onRampPartner) - before, GROSS, "partner made whole");
+        assertEq(vault.reservedForFunding(), 0);
+        assertEq(vault.totalFundingReturned(), GROSS);
+        assertEq(vault.getFunding(ref).returnedAt, uint64(block.timestamp));
+    }
+
+    function test_returnFunding_afterTheLockIsTooOldToSettle() public {
+        _lock(ref, AMOUNT);
+        vm.prank(onRampPartner);
+        vault.fund(ref, GROSS);
+
+        // The operator abandoned the transfer without cancelling. Capital must not be stuck.
+        vm.warp(block.timestamp + 7 days + 1);
+        vault.returnFunding(ref);
+        assertEq(vault.reservedForFunding(), 0);
+    }
+
+    function test_returnFunding_revertsWhileTheTransferCanStillSettle() public {
+        _lock(ref, AMOUNT);
+        vm.prank(onRampPartner);
+        vault.fund(ref, GROSS);
+
+        vm.expectRevert(abi.encodeWithSelector(ISettlementVault.FundingStillSettleable.selector, ref));
+        vault.returnFunding(ref);
+    }
+
+    function test_returnFunding_revertsWhenNothingWasFunded() public {
+        _lock(ref, AMOUNT);
+        vm.prank(operator);
+        vault.cancelQuote(ref);
+
+        vm.expectRevert(abi.encodeWithSelector(ISettlementVault.NotFunded.selector, ref));
+        vault.returnFunding(ref);
+    }
+
+    function test_returnFunding_cannotBeDoneTwice() public {
+        _lock(ref, AMOUNT);
+        vm.prank(onRampPartner);
+        vault.fund(ref, GROSS);
+        vm.prank(operator);
+        vault.cancelQuote(ref);
+        vault.returnFunding(ref);
+
+        vm.expectRevert(abi.encodeWithSelector(ISettlementVault.FundingAlreadyReturned.selector, ref));
+        vault.returnFunding(ref);
+    }
+
+    function test_returnFunding_revertsAfterSettlement() public {
+        _lock(ref, AMOUNT);
+        vm.prank(onRampPartner);
+        vault.fund(ref, GROSS);
+        vm.prank(operator);
+        vault.settle(ref, ngnPartner, AMOUNT);
+
+        vm.warp(block.timestamp + 7 days + 1);
+        vm.expectRevert(abi.encodeWithSelector(ISettlementVault.RefAlreadyUsed.selector, ref));
+        vault.returnFunding(ref);
+    }
+
+    /// @dev A pause must not trap a partner's capital — that is the bug this whole path exists to prevent.
+    function test_returnFunding_worksWhilePaused() public {
+        _lock(ref, AMOUNT);
+        vm.prank(onRampPartner);
+        vault.fund(ref, GROSS);
+        vm.prank(operator);
+        vault.cancelQuote(ref);
+        vm.prank(pauser);
+        vault.pause();
+
+        uint256 before = usdc.balanceOf(onRampPartner);
+        vault.returnFunding(ref);
+        assertEq(usdc.balanceOf(onRampPartner) - before, GROSS);
+    }
+
+    /// @dev Anyone may trigger it; the money can only ever go back to the address that deposited it.
+    function test_returnFunding_byAStranger_paysTheOriginalFunder() public {
+        _lock(ref, AMOUNT);
+        vm.prank(onRampPartner);
+        vault.fund(ref, GROSS);
+        vm.prank(operator);
+        vault.cancelQuote(ref);
+
+        uint256 before = usdc.balanceOf(onRampPartner);
+        vm.prank(stranger);
+        vault.returnFunding(ref);
+
+        assertEq(usdc.balanceOf(onRampPartner) - before, GROSS, "original funder paid");
+        assertEq(usdc.balanceOf(stranger), 0, "caller gains nothing");
+    }
+
+    function test_returnFunding_releasesTheReserveForSweep() public {
+        _lock(ref, AMOUNT);
+        vm.prank(onRampPartner);
+        vault.fund(ref, GROSS);
+        vm.prank(operator);
+        vault.cancelQuote(ref);
+        vault.returnFunding(ref);
+
+        uint256 balance = usdc.balanceOf(address(vault));
+        vm.prank(admin);
+        vault.sweep(admin, balance);
+        assertEq(usdc.balanceOf(address(vault)), 0);
+    }
+
+    // ------------------------------------------------------------------
     // Partner types (#8)
     // ------------------------------------------------------------------
 

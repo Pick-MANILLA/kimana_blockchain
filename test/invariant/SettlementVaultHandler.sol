@@ -14,6 +14,7 @@ contract SettlementVaultHandler is Test {
     address internal operator;
     address internal admin;
     address internal partner;
+    address internal oracle;
     address internal refundTo;
 
     bytes32[] public refs;
@@ -24,6 +25,9 @@ contract SettlementVaultHandler is Test {
     uint256 public ghostSwept;
     uint256 public ghostTopUps;
     uint256 public ghostFunded;
+    uint256 public ghostFundingReturned;
+    uint256 public ghostFundingSettled;
+    bytes32[] internal fundedRefs;
     uint256 internal nonce;
 
     constructor(
@@ -32,7 +36,8 @@ contract SettlementVaultHandler is Test {
         address operator_,
         address admin_,
         address partner_,
-        address refundTo_
+        address refundTo_,
+        address oracle_
     ) {
         vault = vault_;
         usdc = usdc_;
@@ -40,6 +45,26 @@ contract SettlementVaultHandler is Test {
         admin = admin_;
         partner = partner_;
         refundTo = refundTo_;
+        oracle = oracle_;
+    }
+
+    /// @dev The oracle publishes continuously in production; without this, `warp` would make every lock
+    ///      revert with ReferenceRateUnavailable and the handler would stop exercising the contract.
+    /// @dev Mirrors the contract's own solvency guard, so the handler exercises success paths rather than
+    ///      bouncing off a revert it could have predicted.
+    function _spendable() internal view returns (uint256) {
+        uint256 encumbered = vault.reservedForRefunds() + vault.reservedForFunding();
+        uint256 balance = usdc.balanceOf(address(vault));
+        return balance > encumbered ? balance - encumbered : 0;
+    }
+
+    function _refreshRate() internal {
+        vm.prank(oracle);
+        vault.setReferenceRate("NGN", 164_525_000_000);
+    }
+
+    function fundedRefCount() external view returns (uint256) {
+        return fundedRefs.length;
     }
 
     function refCount() external view returns (uint256) {
@@ -49,8 +74,9 @@ contract SettlementVaultHandler is Test {
     function settle(uint256 amount) external {
         amount = bound(amount, 10_000, vault.maxPerSettlement());
         if (amount > vault.remainingDailyLimit()) return;
-        if (amount > usdc.balanceOf(address(vault)) - vault.reservedForRefunds()) return;
+        if (amount > _spendable()) return;
 
+        _refreshRate();
         bytes32 ref = keccak256(abi.encode("handler", nonce++));
         ISettlementVault.QuoteInput memory q = ISettlementVault.QuoteInput({
             quoteId: keccak256(abi.encode("quote", ref)),
@@ -73,10 +99,11 @@ contract SettlementVaultHandler is Test {
     function fundAndSettle(uint256 amount) external {
         amount = bound(amount, 10_000, vault.maxPerSettlement());
         if (amount > vault.remainingDailyLimit()) return;
-        if (amount > usdc.balanceOf(address(vault)) - vault.reservedForRefunds()) return;
+        if (amount > _spendable()) return;
 
         uint256 fee = amount / 100;
         uint256 gross = amount + fee;
+        _refreshRate();
         bytes32 ref = keccak256(abi.encode("handler-fund", nonce++));
         ISettlementVault.QuoteInput memory q = ISettlementVault.QuoteInput({
             quoteId: keccak256(abi.encode("quote", ref)),
@@ -101,6 +128,55 @@ contract SettlementVaultHandler is Test {
         vault.settle(ref, partner, amount);
         refs.push(ref);
         ghostSettled += amount;
+        ghostFundingSettled += gross;
+    }
+
+    /// @dev Funds a ref and leaves it outstanding, so the funding reserve is non-zero across other actions.
+    function fundOnly(uint256 amount) external {
+        amount = bound(amount, 10_000, vault.maxPerSettlement());
+        uint256 fee = amount / 100;
+        uint256 gross = amount + fee;
+
+        _refreshRate();
+        bytes32 ref = keccak256(abi.encode("handler-fundonly", nonce++));
+        ISettlementVault.QuoteInput memory q = ISettlementVault.QuoteInput({
+            quoteId: keccak256(abi.encode("quote", ref)),
+            receiveCurrency: "NGN",
+            expiresAt: uint64(block.timestamp) + 60,
+            rate: 164_525_000_000,
+            usdcAmount: amount,
+            feeUsdc: fee,
+            receiveAmountMinor: FxMath.receiveAmount(amount, 164_525_000_000, 2)
+        });
+        vm.prank(operator);
+        vault.lockQuote(ref, q);
+
+        usdc.mint(refundTo, gross);
+        vm.startPrank(refundTo);
+        usdc.approve(address(vault), gross);
+        vault.fund(ref, gross);
+        vm.stopPrank();
+
+        ghostFunded += gross;
+        fundedRefs.push(ref);
+    }
+
+    /// @dev Cancels a funded ref and returns the capital, exercising the issue #23 path.
+    function cancelAndReturnFunding(uint256 index) external {
+        if (fundedRefs.length == 0) return;
+        index = bound(index, 0, fundedRefs.length - 1);
+        bytes32 ref = fundedRefs[index];
+
+        ISettlementVault.Funding memory f = vault.getFunding(ref);
+        if (f.returnedAt != 0) return;
+        if (vault.getSettlement(ref).status != ISettlementVault.Status.None) return;
+
+        if (!vault.getQuote(ref).cancelled) {
+            vm.prank(operator);
+            vault.cancelQuote(ref);
+        }
+        vault.returnFunding(ref);
+        ghostFundingReturned += f.amount;
     }
 
     /// @dev Locks a quote and cancels it; the ref must never become settleable.

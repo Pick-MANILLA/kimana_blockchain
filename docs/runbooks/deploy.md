@@ -14,7 +14,7 @@ add a second when a partner or the custody provider requires it.
 
 ```bash
 curl -L https://foundry.paradigm.xyz | bash && foundryup
-git clone https://github.com/Pick-MANILLA/kimana_blockchain.git && cd kimana_blockchain
+git clone https://github.com/Pick-MANILLA/kimana_contract.git && cd kimana_contract
 make install
 forge test          # 97 tests must pass
 make e2e            # full flow on a local chain (needs Node 20+)
@@ -185,8 +185,17 @@ cast send $VAULT "setReferenceRate(bytes3,uint256)" 0x4e474e 164525000000 \
 cast call $VAULT "getReferenceRate(bytes3)((uint256,uint64))" 0x4e474e --rpc-url $RPC
 ```
 
-Reference rates go stale after an hour by default, so re-run this before testing, or leave the rate
-oracle service running (issue #15). A stale rate doesn't block payments; it only raises an alert.
+**Do not skip this step.** Since issue #24 the divergence check fails closed: with no fresh reference rate,
+every `lockQuote` reverts with `ReferenceRateUnavailable`. Reference rates go stale after an hour by default,
+so re-publish before testing or leave the rate oracle service running (`oracle/`, issue #15).
+
+If you need to lock during a genuine oracle outage, admin can set `setAllowStaleReferenceRate(true)`. That
+disables the only on-chain protection against a bad rate, so treat it as a time-limited incident measure and
+turn it off again:
+
+```bash
+cast send $VAULT "setAllowStaleReferenceRate(bool)" true --rpc-url $RPC --private-key $ADMIN_KEY
+```
 
 ---
 
@@ -237,7 +246,7 @@ cast send $USDC "approve(address,uint256)" $VAULT $(( AMOUNT + FEE )) \
   --rpc-url $RPC --private-key $PARTNER_KEY
 cast send $VAULT "fund(bytes32,uint256)" $REF $(( AMOUNT + FEE )) \
   --rpc-url $RPC --private-key $PARTNER_KEY
-cast call $VAULT "getFunding(bytes32)((address,uint64,uint256))" $REF --rpc-url $RPC
+cast call $VAULT "getFunding(bytes32)((address,uint64,uint64,uint256))" $REF --rpc-url $RPC
 
 # 8.2 Pay the partner
 cast send $VAULT "settle(bytes32,address,uint256)" $REF $PARTNER $AMOUNT \
@@ -254,6 +263,14 @@ cast send $VAULT "returnSettlement(bytes32)" $REF \
 # 8.4 Refund (on a testnet the partner address stands in for the on-ramp)
 cast send $VAULT "refund(bytes32,address)" $REF $PARTNER \
   --rpc-url $RPC --private-key $OPERATOR_KEY
+
+# 8.4b Optional: prove a cancelled transfer returns its deposit (issue #23).
+#      Fund a second ref, cancel it, then return the capital. Callable by anyone.
+export REF2=$(cast keccak "kimana:transfer:demo_004")
+# ... lock and fund REF2 as in 8.1/8.1b, then:
+cast send $VAULT "cancelQuote(bytes32)" $REF2 --rpc-url $RPC --private-key $OPERATOR_KEY
+cast send $VAULT "returnFunding(bytes32)" $REF2 --rpc-url $RPC --private-key $PARTNER_KEY
+cast call $VAULT "reservedForFunding()(uint256)" --rpc-url $RPC        # back to 0
 
 # 8.5 Final state: status 3 = Refunded, nothing reserved
 cast call $VAULT "getSettlement(bytes32)((address,uint64,uint8,uint256))" $REF --rpc-url $RPC

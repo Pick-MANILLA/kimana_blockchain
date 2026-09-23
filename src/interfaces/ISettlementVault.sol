@@ -60,6 +60,7 @@ interface ISettlementVault {
     struct Funding {
         address partner;
         uint64 fundedAt;
+        uint64 returnedAt;
         uint256 amount;
     }
 
@@ -102,6 +103,8 @@ interface ISettlementVault {
     event SettlementReturned(bytes32 indexed ref, address indexed partner, uint256 amount);
     event SettlementRefunded(bytes32 indexed ref, address indexed to, uint256 amount);
     event SettlementFunded(bytes32 indexed ref, address indexed partner, uint256 amount, uint256 feeUsdc);
+    event FundingReturned(bytes32 indexed ref, address indexed partner, uint256 amount);
+    event AllowStaleReferenceRateUpdated(bool allowed);
     event PartnerUpdated(address indexed partner, bool onRamp, bool offRamp, bool enabled, bytes3 payoutCurrency);
     event RequireFundingUpdated(bool required);
     event LimitsUpdated(uint256 maxPerSettlement, uint256 dailyLimit);
@@ -169,6 +172,9 @@ interface ISettlementVault {
     error NotFunded(bytes32 ref);
     error PartnerCurrencyMismatch(address partner, bytes3 required, bytes3 quoted);
     error InvalidPartnerConfig();
+    error FundingAlreadyReturned(bytes32 ref);
+    error FundingStillSettleable(bytes32 ref);
+    error ReferenceRateUnavailable(bytes3 currency, uint64 updatedAt);
 
     // ---------------------------------------------------------------------
     // Operator actions (backend, via custody provider)
@@ -201,6 +207,12 @@ interface ISettlementVault {
     ///      transfer rather than into a shared float; `settle` then refuses an unfunded `ref`.
     function fund(bytes32 ref, uint256 amount) external;
 
+    /// @notice Returns a funded deposit to the partner that made it, once the transfer can never settle:
+    ///         the quote was cancelled, or the lock is older than `maxSettleDelay`.
+    /// @dev Callable by anyone, because the destination and amount are fixed by the recorded deposit — there is
+    ///      nothing to steer. Allowed while paused, so a pause cannot trap a partner's capital.
+    function returnFunding(bytes32 ref) external;
+
     /// @notice Called by the settlement's partner when the off-chain payout failed. Pulls the exact settled
     ///         amount back into the vault (partner must `approve` the vault first).
     function returnSettlement(bytes32 ref) external;
@@ -218,6 +230,11 @@ interface ISettlementVault {
 
     function setPartner(address partner, PartnerInfo calldata info) external;
     function setRequireFunding(bool required) external;
+
+    /// @notice Allow quotes to lock when no fresh reference rate is available. Default false (fail closed).
+    /// @dev Turning this on disables the only on-chain defence against a manipulated or fat-fingered rate, so
+    ///      it is an explicit, audited admin action for an oracle outage, never a standing configuration.
+    function setAllowStaleReferenceRate(bool allowed) external;
     function setLimits(uint256 maxPerSettlement, uint256 dailyLimit) external;
     function setQuoteConfig(QuoteConfig calldata config) external;
     function setCurrency(bytes3 currency, uint8 decimals, bool enabled) external;
