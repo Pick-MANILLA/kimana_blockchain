@@ -11,14 +11,31 @@ contract SettlementVaultInvariantTest is StdInvariant, BaseTest {
 
     function setUp() public override {
         super.setUp();
-        handler = new SettlementVaultHandler(vault, usdc, operator, admin, ngnPartner, onRampPartner);
+        handler = new SettlementVaultHandler(vault, usdc, operator, admin, ngnPartner, onRampPartner, rateOracle);
         targetContract(address(handler));
+    }
+
+    /// Issue #22/#23: the vault can always honour both reserves. Money that belongs to someone else is
+    /// never counted as treasury float.
+    function invariant_bothReservesAreBacked() public view {
+        uint256 encumbered = vault.reservedForRefunds() + vault.reservedForFunding();
+        assertGe(usdc.balanceOf(address(vault)), encumbered, "vault cannot cover what it owes");
+    }
+
+    /// Issue #22: reservedForFunding equals the sum of deposits that are neither settled nor returned.
+    function invariant_fundingReserveMatchesOutstandingDeposits() public view {
+        assertEq(
+            vault.reservedForFunding(),
+            handler.ghostFunded() - handler.ghostFundingReturned() - handler.ghostFundingSettled(),
+            "funding reserve drifted"
+        );
     }
 
     /// Vault balance always equals what went in minus what went out.
     function invariant_balanceMatchesAccounting() public view {
         uint256 inflow = INITIAL_FLOAT + handler.ghostTopUps() + handler.ghostReturned() + handler.ghostFunded();
-        uint256 outflow = handler.ghostSettled() + handler.ghostRefunded() + handler.ghostSwept();
+        uint256 outflow =
+            handler.ghostSettled() + handler.ghostRefunded() + handler.ghostSwept() + handler.ghostFundingReturned();
         assertEq(usdc.balanceOf(address(vault)), inflow - outflow);
     }
 
@@ -28,6 +45,7 @@ contract SettlementVaultInvariantTest is StdInvariant, BaseTest {
         assertEq(vault.totalReturned(), handler.ghostReturned());
         assertEq(vault.totalRefunded(), handler.ghostRefunded());
         assertEq(vault.totalFunded(), handler.ghostFunded());
+        assertEq(vault.totalFundingReturned(), handler.ghostFundingReturned());
     }
 
     /// Money can only be refunded after it was returned, and only returned after it was settled.
