@@ -78,9 +78,11 @@ critical alert.
   **blocked** (`RateDivergenceTooHigh`), so payments stop. A denial of service, visible immediately.
 - **Rate set to match a malicious quote** → the check passes and a bad rate settles. This needs the operator
   *and* the oracle, which is exactly why they must be different keys from different systems.
-- **Oracle goes offline** → references go stale. `ReferenceRateStale` fires on every lock and **locks still
-  succeed**. This is a deliberate choice: a dead oracle should not stop payments. It does mean divergence is
-  unchecked while it lasts, so a stale-rate alert is an incident, not noise.
+- **Oracle goes offline** → references go stale and `lockQuote` **reverts** with `ReferenceRateUnavailable`
+  (issue #24). This was originally fail-open, which was wrong: an attacker able to submit a bad rate could
+  simply wait for, or cause, the oracle to go stale and bypass the check entirely. A control that disables
+  itself under attack is not a control. Availability during a genuine outage is handled by an explicit admin
+  toggle, `allowStaleReferenceRate`, which is logged and reversible.
 
 **Mitigations:** separate key and separate data source from the quoting provider (`oracle/`, #15); the service
 refuses to publish a move larger than `MAX_JUMP_BPS` (default 10%) and alerts instead; `setReferenceRate`
@@ -135,6 +137,9 @@ acceptable to the business, not look for code fixes.
 | Partner allowlist with types | `PartnerNotAllowed`, `PartnerCurrencyMismatch` | Money leaving to an arbitrary address; an NGN payout going to a partner who only pays cedi. |
 | Per-settlement and per-day limits | `ExceedsPerSettlementLimit`, `ExceedsDailyLimit` | Turning a key compromise into total loss in one transaction. |
 | `reservedForRefunds` excluded from `sweep` | `InsufficientFreeBalance` | Treasury operations eating money owed to a customer. |
+| `reservedForFunding` excluded from `sweep` **and** from other refs' settlements | `InsufficientFreeBalance` | A treasury sweep, or a settlement for a different transfer, spending a deposit a partner made for a specific one (#22). |
+| `returnFunding` | `FundingStillSettleable`, `FundingAlreadyReturned` | A cancelled or abandoned transfer trapping the partner's capital (#23). |
+| Fail-closed divergence check | `ReferenceRateUnavailable` | Bypassing the rate check by taking the oracle offline (#24). |
 | Pause | `Pausable` | Buying time during an incident. |
 | Two-step admin transfer with delay | `AccessControlDefaultAdminRules` | A stolen admin becoming permanent before anyone notices. |
 | 6-decimal asset check in the constructor | `UnsupportedAssetDecimals` | Deploying against 18-decimal bridged USDC, where every amount would be off by 10¹². |
@@ -168,6 +173,9 @@ Carry this list into the audit rather than letting the auditor rediscover it:
 2. **Operator + partner compromise together** drains up to the daily limit. Accepted; keep the limit tight.
 3. **The vault being blocklisted by Circle is unrecoverable on-chain.** Accepted; recovery requires Circle.
 4. **Slow reference-rate poisoning** is not detected on-chain (§2.4). Needs a monitoring rule.
+4a. **`allowStaleReferenceRate` is a live bypass of the divergence check.** It is admin-only and emits an
+   event, but while it is on there is no on-chain rate protection. Treat turning it on as an incident with a
+   time limit, not a setting.
 5. **`requireFunding` is off by default**, so an unfunded `ref` can be settled. Deliberate: the on-ramp
    partner's delivery model is not yet confirmed (#1, #8). **Turn it on once it is.**
 6. **No on-chain proof of fiat payout.** By design — the chain cannot observe a bank.
@@ -193,11 +201,13 @@ Carry this list into the audit rather than letting the auditor rediscover it:
 - [ ] `totalRefunded ≤ totalReturned ≤ totalSettled`
 - [ ] `reservedForRefunds ≤ balance` — reserved funds are always backed
 - [ ] every `ref` is in exactly one consistent state; a cancelled `ref` never settles
+- [ ] `balance ≥ reservedForRefunds + reservedForFunding` — the vault can always cover what it owes
+- [ ] `reservedForFunding` equals the sum of deposits neither settled nor returned
 - [ ] on-chain counters always equal the test harness's independent ghost counters
 
 **Evidence to provide**
 
-- [ ] `forge test` — 126 unit and fuzz tests (1,000 fuzz runs) plus 6 invariants
+- [ ] `forge test` — 151 unit and fuzz tests (1,000 fuzz runs) plus 8 invariants
 - [ ] `forge coverage` — 100% line, statement, branch and function coverage of `src/`
 - [ ] `make e2e` — full lifecycle on a live chain with monitor assertions, running in CI
 - [ ] `make slither` — output and triage in `review.md`

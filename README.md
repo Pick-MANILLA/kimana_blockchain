@@ -1,6 +1,6 @@
-# kimana_blockchain
+# kimana_contract
 
-[![CI](https://github.com/Pick-MANILLA/kimana_blockchain/actions/workflows/test.yml/badge.svg)](https://github.com/Pick-MANILLA/kimana_blockchain/actions/workflows/test.yml)
+[![CI](https://github.com/Pick-MANILLA/kimana_contract/actions/workflows/test.yml/badge.svg)](https://github.com/Pick-MANILLA/kimana_contract/actions/workflows/test.yml)
 
 The on-chain settlement layer for **Kimana**, a cross-border payment and trade workflow platform for African SMEs.
 
@@ -20,8 +20,9 @@ customer's bank account. **This repo covers only the USDC movement between the K
 | FX quote criteria (settlement side) | ✅ expiry, single-use lock, counterparty-amount check, divergence alerts ([details](docs/fx-quote-criteria.md)) |
 | Unit, fuzz and invariant tests | ✅ 126 unit and fuzz tests + 6 invariants, 100% line and branch coverage |
 | Fork tests against real USDC (blocklist + pause) | ✅ `test/fork/`, on demand with RPC URLs, skipped otherwise (see below) |
+| Unit, fuzz and invariant tests | ✅ 151 unit and fuzz tests + 8 invariants, 100% line and branch coverage |
 | Local integration test (Anvil + monitor) | ✅ `make e2e`, runs in CI |
-| Inbound USDC accounting (`fund`) | ✅ deposits bound on-chain to the locked quote (optional gate: `requireFunding`) |
+| Inbound USDC accounting (`fund`) | ✅ deposits bound to the quote, reserved against sweep, returnable if cancelled |
 | Partner types | ✅ on-ramp / off-ramp, with per-currency payout restriction |
 | Monitoring | ✅ `monitor/`: event and reverted-transaction alerts, alert routing, `/health`, Docker + systemd |
 | Rate oracle service | ✅ `oracle/`: independent reference rates, integer-only, jump guard |
@@ -34,7 +35,7 @@ customer's bank account. **This repo covers only the USDC movement between the K
 | Custody (Fireblocks, Cobo or Dfns) integration | ⏳ not started |
 | External audit | ⏳ required before mainnet |
 
-See the [open issues](https://github.com/Pick-MANILLA/kimana_blockchain/issues) for what to pick up.
+See the [open issues](https://github.com/Pick-MANILLA/kimana_contract/issues) for what to pick up.
 
 > **Chain:** EVM (confirmed). The vault works on any EVM chain with native USDC: **Base** (default), **Arbitrum**,
 > **Polygon** and **Ethereum** are configured, with testnets. BNB Chain is not supported (its bridged USDC has 18
@@ -53,6 +54,10 @@ USD payer ──► On-ramp partner ──USDC──► SettlementVault ──se
 - `ref` is `keccak256("kimana:transfer:" + transferId)`. Each `ref` can move money **once**.
 - The on-ramp partner can deliver the USDC with `fund(ref, usdcAmount + feeUsdc)`, which binds the deposit
   on-chain to the accepted quote. Admin can then require it with `setRequireFunding(true)`.
+- A deposit is **reserved**: neither `sweep` nor another transfer's settlement can spend it, and
+  `returnFunding(ref)` sends it home if the transfer is cancelled or abandoned.
+- **A quote cannot lock without a fresh reference rate.** The divergence check fails closed; admin can override
+  with `setAllowStaleReferenceRate(true)` during an oracle outage.
 - Before paying, the backend calls `lockQuote(ref, quote)` with the rate, fee and counterparty amount the customer
   accepted. Expired, reused or inconsistent quotes are rejected, and rates far from the oracle's reference rate
   raise an alert (or are blocked). `settle` only pays the exact locked amount.
@@ -117,8 +122,8 @@ docs/
 Requires [Foundry](https://book.getfoundry.sh/getting-started/installation).
 
 ```bash
-git clone https://github.com/Pick-MANILLA/kimana_blockchain.git
-cd kimana_blockchain
+git clone https://github.com/Pick-MANILLA/kimana_contract.git
+cd kimana_contract
 
 make install          # installs forge-std + OpenZeppelin v5.4.0 into lib/ (pinned in Makefile)
 forge build

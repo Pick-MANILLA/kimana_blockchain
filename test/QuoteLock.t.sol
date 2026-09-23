@@ -296,27 +296,84 @@ contract QuoteLockTest is BaseTest {
         assertFalse(vault.isQuoteUsed(_quoteId(ref)), "blocked quote is not consumed");
     }
 
-    function test_staleReference_emitsAlertButLocks() public {
+    // ------------------------------------------------------------------
+    // Issue #24: the divergence check fails CLOSED
+    // ------------------------------------------------------------------
+
+    function test_staleReference_blocksTheLockByDefault() public {
         uint64 refUpdatedAt = uint64(block.timestamp);
         vm.warp(block.timestamp + 1 hours + 1);
+
+        assertFalse(vault.allowStaleReferenceRate(), "fail-closed is the default");
+        vm.prank(operator);
+        vm.expectRevert(abi.encodeWithSelector(ISettlementVault.ReferenceRateUnavailable.selector, NGN, refUpdatedAt));
+        vault.lockQuote(ref, _quoteInput(ref, amount));
+        assertEq(vault.getQuote(ref).lockedAt, 0, "nothing locked");
+    }
+
+    function test_missingReference_blocksTheLockByDefault() public {
+        vm.prank(admin);
+        vault.setCurrency(GHS, 2, true);
         ISettlementVault.QuoteInput memory q = _quoteInput(ref, amount);
+        q.receiveCurrency = GHS;
+
+        vm.prank(operator);
+        vm.expectRevert(abi.encodeWithSelector(ISettlementVault.ReferenceRateUnavailable.selector, GHS, 0));
+        vault.lockQuote(ref, q);
+    }
+
+    function test_staleReference_emitsAlertAndLocksWhenAdminAllowsIt() public {
+        uint64 refUpdatedAt = uint64(block.timestamp);
+        vm.prank(admin);
+        vault.setAllowStaleReferenceRate(true);
+        vm.warp(block.timestamp + 1 hours + 1);
 
         vm.expectEmit(address(vault));
         emit ISettlementVault.ReferenceRateStale(ref, NGN, refUpdatedAt);
         vm.prank(operator);
-        vault.lockQuote(ref, q);
+        vault.lockQuote(ref, _quoteInput(ref, amount));
         assertGt(vault.getQuote(ref).lockedAt, 0);
     }
 
-    function test_missingReference_emitsAlert() public {
-        vm.prank(admin);
+    function test_missingReference_emitsAlertWhenAdminAllowsIt() public {
+        vm.startPrank(admin);
         vault.setCurrency(GHS, 2, true);
+        vault.setAllowStaleReferenceRate(true);
+        vm.stopPrank();
+
         ISettlementVault.QuoteInput memory q = _quoteInput(ref, amount);
         q.receiveCurrency = GHS;
         vm.expectEmit(address(vault));
         emit ISettlementVault.ReferenceRateStale(ref, GHS, 0);
         vm.prank(operator);
         vault.lockQuote(ref, q);
+    }
+
+    function test_setAllowStaleReferenceRate_onlyAdminAndEmits() public {
+        vm.prank(operator);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IAccessControl.AccessControlUnauthorizedAccount.selector, operator, DEFAULT_ADMIN_ROLE
+            )
+        );
+        vault.setAllowStaleReferenceRate(true);
+
+        vm.expectEmit(address(vault));
+        emit ISettlementVault.AllowStaleReferenceRateUpdated(true);
+        vm.prank(admin);
+        vault.setAllowStaleReferenceRate(true);
+        assertTrue(vault.allowStaleReferenceRate());
+    }
+
+    /// @dev A fresh rate published again after a stale period restores normal locking without the override.
+    function test_freshReferenceAfterStaleness_locksAgain() public {
+        vm.warp(block.timestamp + 1 hours + 1);
+        vm.prank(rateOracle);
+        vault.setReferenceRate(NGN, NGN_RATE);
+
+        vm.prank(operator);
+        vault.lockQuote(ref, _quoteInput(ref, amount));
+        assertGt(vault.getQuote(ref).lockedAt, 0);
     }
 
     function testFuzz_divergence_behaviour(uint256 bps, bool up) public {
@@ -584,6 +641,8 @@ contract QuoteLockTest is BaseTest {
         bytes3 xof = "XOF";
         vm.prank(admin);
         vault.setCurrency(xof, 0, true);
+        vm.prank(rateOracle);
+        vault.setReferenceRate(xof, 60_050_000_000);
         ISettlementVault.QuoteInput memory q = _quoteInput(ref, 100 * USDC);
         q.receiveCurrency = xof;
         q.rate = 60_050_000_000;

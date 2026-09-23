@@ -31,10 +31,19 @@ LOCKED2=$(cast call "$VAULT" "getQuote(bytes32)((bytes32,bytes3,uint8,bool,uint6
 echo "$LOCKED2" | grep -q "167815500000" || fail "ref2 quote not locked at divergent rate: $LOCKED2"
 
 # ref1 was funded by the on-ramp partner before settlement (issue #2): gross = $45,000 + $25 fee.
-FUNDING=$(cast call "$VAULT" "getFunding(bytes32)((address,uint64,uint256))" "$REF1" --rpc-url "$RPC")
+FUNDING=$(cast call "$VAULT" "getFunding(bytes32)((address,uint64,uint64,uint256))" "$REF1" --rpc-url "$RPC")
 echo "$FUNDING" | grep -q "45025000000" || fail "ref1 funding not recorded: $FUNDING"
+# ref3 was funded then cancelled, so totalFunded covers both deposits.
 TOTAL_FUNDED=$(cast call "$VAULT" "totalFunded()(uint256)" --rpc-url "$RPC" | awk '{print $1}')
-[ "$TOTAL_FUNDED" = "45025000000" ] || fail "totalFunded is $TOTAL_FUNDED, expected 45025000000"
+[ "$TOTAL_FUNDED" = "45530000000" ] || fail "totalFunded is $TOTAL_FUNDED, expected 45530000000"
+
+# Issue #23: the cancelled transfer's deposit went back to the on-ramp partner.
+RETURNED=$(cast call "$VAULT" "totalFundingReturned()(uint256)" --rpc-url "$RPC" | awk '{print $1}')
+[ "$RETURNED" = "505000000" ] || fail "totalFundingReturned is $RETURNED, expected 505000000"
+
+# Issue #22: nothing is left encumbered once everything has settled or been returned.
+RESERVED=$(cast call "$VAULT" "reservedForFunding()(uint256)" --rpc-url "$RPC" | awk '{print $1}')
+[ "$RESERVED" = "0" ] || fail "reservedForFunding is $RESERVED, expected 0"
 
 # A quote 6% away from the reference rate must be blocked on-chain (and alerted by the monitor).
 ADMIN_PK=0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d
@@ -60,13 +69,13 @@ const lines = process.argv[1].trim().split("\n").map(JSON.parse);
 const summary = lines.at(-1);
 const has = (e, lvl) => lines.some(l => l.event === e && (!lvl || l.level === lvl));
 const need = [
-  ["QuoteLocked"], ["SettlementFunded"], ["SettlementInitiated"], ["SettlementReturned", "warning"], ["SettlementRefunded"],
+  ["QuoteLocked"], ["SettlementFunded"], ["FundingReturned"], ["QuoteCancelled"], ["SettlementInitiated"], ["SettlementReturned", "warning"], ["SettlementRefunded"],
   ["RateDivergence", "warning"], ["Paused", "critical"], ["Unpaused", "warning"], ["ReferenceRateUpdated"],
   ["FloatCheck", "warning"], ["TransactionReverted", "critical"],
 ];
 const missing = need.filter(([e, l]) => !has(e, l)).map(([e, l]) => e + (l ? "/" + l : ""));
 if (missing.length) { console.error("missing:", missing); process.exit(1); }
-if (summary.counts.QuoteLocked !== 2) { console.error("expected 2 QuoteLocked", summary.counts); process.exit(1); }
+if (summary.counts.QuoteLocked !== 3) { console.error("expected 3 QuoteLocked", summary.counts); process.exit(1); }
 const funded = lines.find(l => l.event === "SettlementFunded");
 if (funded.args.amount !== "45025000000") { console.error("bad funded amount", funded); process.exit(1); }
 const div = lines.find(l => l.event === "RateDivergence");

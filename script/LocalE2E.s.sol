@@ -99,6 +99,26 @@ contract LocalE2E is Script {
         vm.broadcast(OPERATOR_PK);
         vault.lockQuote(ref2, _quote("e2e_quote_002", divergent, UsdcUnits.fromCents(100_000), 0));
 
+        // 6b. A third transfer is funded then cancelled: the partner's capital must come home (issue #23)
+        // NOTE: e2e_txn_003 / e2e_quote_003 are reserved by script/e2e-local.sh for its blocked-quote check.
+        bytes32 ref4 = TransferRef.fromTransferId("e2e_txn_004");
+        uint256 amount4 = UsdcUnits.fromCents(50_000); // $500
+        uint256 fee4 = UsdcUnits.fromCents(500); // $5
+        vm.broadcast(OPERATOR_PK);
+        vault.lockQuote(ref4, _quote("e2e_quote_004", NGN_RATE, amount4, fee4));
+
+        vm.broadcast(DEPLOYER_PK);
+        usdc.mint(onRamp, amount4 + fee4);
+        vm.startBroadcast(ONRAMP_PK);
+        usdc.approve(address(vault), amount4 + fee4);
+        vault.fund(ref4, amount4 + fee4);
+        vm.stopBroadcast();
+
+        vm.broadcast(OPERATOR_PK);
+        vault.cancelQuote(ref4);
+        vm.broadcast(ONRAMP_PK);
+        vault.returnFunding(ref4);
+
         // 7. Emergency pause
         vm.broadcast(PAUSER_PK);
         vault.pause();
@@ -109,6 +129,8 @@ contract LocalE2E is Script {
         console2.logBytes32(ref1);
         console2.log("REF2");
         console2.logBytes32(ref2);
+        console2.log("REF4");
+        console2.logBytes32(ref4);
     }
 
     function _quote(string memory id, uint256 rate, uint256 usdcAmount, uint256 feeUsdc)

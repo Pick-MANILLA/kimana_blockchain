@@ -58,6 +58,8 @@ export const LEVELS = {
   DefaultAdminTransferScheduled: "warning",
   DefaultAdminDelayChangeScheduled: "warning",
   PartnerUpdated: "warning",
+  AllowStaleReferenceRateUpdated: "warning", // the on-chain rate check was switched on or off
+  RequireFundingUpdated: "warning",
   LimitsUpdated: "warning",
   QuoteConfigUpdated: "warning",
   Swept: "warning",
