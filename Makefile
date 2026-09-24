@@ -60,8 +60,11 @@ float:
 oracle:
 	cd oracle && npm ci --silent && node index.mjs
 
+# Same check as CI: fails on Medium/High findings not accepted in docs/security/review.md
 slither:
-	slither . --config-file slither.config.json
+	rm -f slither.json
+	slither . --config-file slither.config.json --json slither.json --fail-none
+	bash script/slither-gate.sh slither.json docs/security/review.md
 
 # Watch a deployed vault (needs RPC_URL and VAULT_ADDRESS)
 monitor:

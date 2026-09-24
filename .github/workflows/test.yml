@@ -96,8 +96,13 @@ jobs:
         # `--fail-on medium` to `--fail-medium`, and CI went red on a day nobody had touched the code.
         run: pip install slither-analyzer==0.11.6
 
+      # Slither itself never fails the job. The gate does, against the accepted findings in
+      # docs/security/review.md, so an accepted finding passes and a new one of the same kind does not.
       - name: Run Slither
-        run: slither . --config-file slither.config.json --fail-medium
+        run: slither . --config-file slither.config.json --json slither.json --fail-none
+
+      - name: Fail on unaccepted Medium/High findings
+        run: bash script/slither-gate.sh slither.json docs/security/review.md
 
   e2e:
     name: Local integration (Anvil + monitor)

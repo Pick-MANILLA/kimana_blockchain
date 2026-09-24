@@ -31,3 +31,6 @@ deployments/31337.json
 
 # Oracle service
 oracle/node_modules/
+
+# Slither report (`make slither`)
+slither.json
